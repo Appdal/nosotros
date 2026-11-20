@@ -362,7 +362,7 @@ async function start(u){
   if(!prof){const {error}=await sb.from('profiles').insert({user_id:me,name:myName});if(error){show('Esta cuenta no está autorizada para este chat.');return}}
   await loadCouple(); await loadProfiles(); await loadMessages(); subscribe(); stamp(); checkPushState(); buildColors(); applyTheme();
   if(isIOS&&!standalone)show('Para notificaciones en iPhone: Compartir ⬆ → "Agregar a inicio", y abre desde ese ícono.');
-  navigator.serviceWorker?.register('sw.js').catch(()=>{});
+  if(navigator.serviceWorker){let reloaded=false;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(reloaded)return;reloaded=true;location.reload()});navigator.serviceWorker.register('sw.js').then(reg=>{reg.update();setInterval(()=>reg.update(),60000)}).catch(()=>{})}
   try{navigator.clearAppBadge&&navigator.clearAppBadge()}catch(e){}
 }
 async function loadCouple(){const {data}=await sb.from('couple').select('data').eq('id',1).maybeSingle();couple=data?.data||{};}
