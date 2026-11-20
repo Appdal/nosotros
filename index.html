@@ -472,10 +472,10 @@ async function checkPushState(){
   if(!('serviceWorker' in navigator)||!('PushManager' in window)||!window.Notification){st.textContent=isIOS?'Este iPhone necesita iOS 16.4 o más y abrir la app desde la pantalla de inicio.':'Este navegador no permite notificaciones.';btn.disabled=true;return}
   btn.disabled=false;
   const reg=await navigator.serviceWorker.ready;const s=await reg.pushManager.getSubscription();
-  if(Notification.permission==='granted'&&s){st.textContent='✓ Notificaciones activadas en este celular.';btn.textContent='Volver a activar';await saveSub(s)}
+  if(Notification.permission==='granted'&&s){st.textContent='🔔 Notificaciones ACTIVADAS en este celular. Te llegan los mensajes y zumbidos con la app cerrada.';btn.textContent='Desactivar notificaciones';btn.classList.add('alt');btn.dataset.on='1';await saveSub(s)}
   else if(Notification.permission==='denied'){st.textContent='Las notificaciones están bloqueadas. Actívalas en los ajustes del celular para esta app.'}
-  else{st.textContent='Activa las notificaciones para que te lleguen los mensajes y zumbidos con la app cerrada.';
-    if(!panel.classList.contains('on')){const b=document.createElement('button');b.className='pill alt';b.textContent='Activar avisos';b.onclick=()=>{show('');enablePush()};if(!(isIOS&&!standalone))show('Activa las notificaciones',b)}}
+  else{btn.textContent='Activar notificaciones';btn.classList.remove('alt');btn.dataset.on='';st.textContent='🔕 Notificaciones DESACTIVADAS. Actívalas para que te lleguen los mensajes y zumbidos con la app cerrada.';
+    if(!panel.classList.contains('on')){const b=document.createElement('button');b.className='pill alt';b.textContent='Activar avisos';b.onclick=()=>{show('');enablePush()};let off=false;try{off=localStorage.getItem('pushOff')==='1'}catch(_){}if(!(isIOS&&!standalone)&&!off)show('Activa las notificaciones',b)}}
 }
 async function saveSub(s){const j=s.toJSON();await sb.from('push_subs').upsert({endpoint:j.endpoint,user_id:me,sub:j},{onConflict:'endpoint'})}
 async function enablePush(){
@@ -484,10 +484,17 @@ async function enablePush(){
     const reg=await navigator.serviceWorker.ready;
     const {data,error}=await sb.functions.invoke('notify',{method:'GET'});if(error||!data?.publicKey)throw new Error('falta configurar las claves de notificación');
     const s=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64u(data.publicKey)});
-    await saveSub(s);flash('✓ Notificaciones activadas');checkPushState();
+    await saveSub(s);try{localStorage.removeItem('pushOff')}catch(_){}flash('✓ Notificaciones activadas');checkPushState();
   }catch(e){flash('No se pudieron activar: '+(e.message||e),6000)}
 }
-$('pNotif').onclick=enablePush;
+async function disablePush(){
+  try{
+    const reg=await navigator.serviceWorker.ready;const s=await reg.pushManager.getSubscription();
+    if(s){await sb.from('push_subs').delete().eq('endpoint',s.endpoint);await s.unsubscribe()}
+    try{localStorage.setItem('pushOff','1')}catch(_){}flash('🔕 Notificaciones desactivadas');checkPushState();
+  }catch(e){flash('No se pudieron desactivar: '+(e.message||e),6000)}
+}
+$('pNotif').onclick=()=>$('pNotif').dataset.on?disablePush():enablePush();
 
 /* ---------- arranque ---------- */
 if(SUPABASE_URL.startsWith('PEGAR')){$('lerr').textContent='Falta configurar Supabase.'}
