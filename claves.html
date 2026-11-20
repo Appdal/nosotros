@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Claves de notificaciones</title>
+<style>
+body{font:16px/1.5 system-ui,sans-serif;max-width:640px;margin:0 auto;padding:24px;color:#2b1519;background:#fbf1ee}
+h1{color:#c42f4a;font-size:24px}
+label{display:block;font-weight:700;margin-top:18px}
+code{display:block;background:#fff;border:1px solid #efd9d5;border-radius:10px;padding:12px;word-break:break-all;font-size:14px}
+button{margin-top:8px;border:0;border-radius:99px;padding:10px 18px;background:#c42f4a;color:#fff;font-weight:600;font-size:15px;cursor:pointer}
+p.warn{background:#ffe3d8;border-radius:10px;padding:10px 12px}
+</style>
+</head>
+<body>
+<h1>Claves de notificaciones</h1>
+<p>Estas claves se crearon ahora mismo <b>en tu navegador</b>. No se envían a ningún lado.</p>
+<p class="warn">Cópialas a Supabase (Edge Functions → Secrets) y luego <b>cierra esta página</b>. Si la recargas, se crean otras distintas: usa siempre el mismo par.</p>
+<label>VAPID_PUBLIC_KEY</label><code id="pub">Generando…</code><button data-c="pub">Copiar pública</button>
+<label>VAPID_PRIVATE_KEY (secreta, no la compartas)</label><code id="priv">Generando…</code><button data-c="priv">Copiar privada</button>
+<script>
+const b64u = buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+(async () => {
+  const kp = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify']);
+  const raw = await crypto.subtle.exportKey('raw', kp.publicKey);
+  const jwk = await crypto.subtle.exportKey('jwk', kp.privateKey);
+  document.getElementById('pub').textContent = b64u(raw);
+  document.getElementById('priv').textContent = jwk.d;
+})();
+document.querySelectorAll('button').forEach(b => b.onclick = async () => {
+  await navigator.clipboard.writeText(document.getElementById(b.dataset.c).textContent);
+  b.textContent = '¡Copiada!'; setTimeout(() => b.textContent = b.dataset.c === 'pub' ? 'Copiar pública' : 'Copiar privada', 1500);
+});
+</script>
+</body>
+</html>
