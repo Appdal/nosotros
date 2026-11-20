@@ -45,7 +45,9 @@ header{display:flex;align-items:center;gap:10px;padding:calc(8px + env(safe-area
 h2{margin:0;font:700 26px/1.05 Caveat,cursive;color:var(--mine);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sub{font-size:13px;color:var(--soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.sub.on{color:#1f9d5c;font-weight:600}.sub.typ{color:var(--mine);font-style:italic;font-weight:600}
 .btn{flex:none;width:42px;height:44px;border-radius:50%;border:0;display:grid;place-items:center;background:transparent;color:var(--mine)}
-.btn svg{width:23px;height:23px}.btn:disabled{opacity:.35}
+.btn svg{width:22px;height:22px}.btn:disabled{opacity:.35}
+header .btn{width:38px}
+@media(max-width:400px){header{gap:6px}header .btn{width:33px}header .btn svg{width:20px;height:20px}}
 #buzz,#love{color:var(--accent)}
 #pin{display:none;align-items:center;gap:8px;padding:8px 14px;background:color-mix(in srgb,var(--accent) 35%,var(--bar));border-bottom:1px solid var(--line);font-size:14px}
 #pin.on{display:flex}#pin b{color:var(--mine)}#pin .x{margin-left:auto;color:var(--soft);background:none;border:0;font-size:18px}
@@ -386,7 +388,8 @@ async function stamp(){if(me)await sb.from('profiles').update({last_seen:new Dat
 
 function status(){const p=other&&online[other];const nm=couple.chatName||names[other]||'';title.textContent=nm||'Nosotros';
   const avph=couple.avatars&&other&&couple.avatars[other];av.innerHTML='';if(avph){const i=document.createElement('img');i.src='';mediaUrl(avph).then(u=>i.src=u).catch(()=>{});av.appendChild(i)}else av.textContent=nm?nm[0].toUpperCase():'♥';
-  av.classList.toggle('on',!!p);sub.className='sub'+(p?(p.typing?' typ':' on'):'');const ls=other&&profiles[other]?.last_seen;sub.textContent=p?(p.typing?'Escribiendo…':'En línea'):ls?'Últ. vez '+ago(ls):other?'Desconectado':'Esperando a tu pareja'}
+  av.classList.toggle('on',!!p);sub.className='sub'+(p?(p.typing?' typ':' on'):'');const ls=other&&profiles[other]?.last_seen;sub.textContent=p?(p.typing?'Escribiendo…':'En línea'):ls?'Últ. vez '+agoShort(ls):other?'Desconectado':'Esperando a tu pareja'}
+function agoShort(ts){const d=new Date(ts),t=new Date(),y=new Date();y.setDate(t.getDate()-1);if(Date.now()-d<60000)return 'recién';if(d.toDateString()===t.toDateString())return 'hoy '+hm(ts);if(d.toDateString()===y.toDateString())return 'ayer '+hm(ts);return d.toLocaleDateString('es',{day:'numeric',month:'short'})}
 setInterval(()=>{if(!online[other])status()},60000);
 
 async function markRead(){if(document.hidden||!me)return;const last=msgs.filter(m=>m.sender!==me).at(-1);if(!last)return;const t=new Date(last.created_at).getTime();if(t<=lastReadSent)return;lastReadSent=t;await sb.from('profiles').update({last_read:last.created_at}).eq('user_id',me)}
