@@ -307,8 +307,9 @@ const urlCache={};
 let hidden=new Set(),hiddenHot=new Set();
 try{hidden=new Set(JSON.parse(localStorage.getItem('hidden')||'[]'))}catch(e){}
 try{hiddenHot=new Set(JSON.parse(localStorage.getItem('hiddenHot')||'[]'))}catch(e){}
-function hideForMe(id){hidden.add(id);try{localStorage.setItem('hidden',JSON.stringify([...hidden]))}catch(e){}selId=null;render()}
-function hideHotForMe(id){hiddenHot.add(id);try{localStorage.setItem('hiddenHot',JSON.stringify([...hiddenHot]))}catch(e){}renderHot()}
+async function saveHidden(){try{localStorage.setItem('hidden',JSON.stringify([...hidden]));localStorage.setItem('hiddenHot',JSON.stringify([...hiddenHot]))}catch(e){}if(me)try{await sb.from('profiles').update({hidden:[...hidden],hidden_hot:[...hiddenHot]}).eq('user_id',me)}catch(e){}}
+function hideForMe(id){hidden.add(id);selId=null;render();saveHidden()}
+function hideHotForMe(id){hiddenHot.add(id);renderHot();saveHidden()}
 
 const PALETTES={rosa:['#c42f4a','#ff8a65'],morado:['#7c3aed','#f472b6'],azul:['#2563eb','#38bdf8'],verde:['#0d9488','#fbbf24'],rojo:['#dc2626','#fb923c'],durazno:['#e05a7a','#ffb085']};
 const QUESTIONS=['¿Cuál fue el momento en que supiste que te gustaba?','¿Qué es lo primero que notaste de mí?','Si pudiéramos viajar mañana, ¿a dónde?','¿Cuál es tu recuerdo favorito juntos?','¿Qué canción te recuerda a mí?','¿Qué te gustaría que hiciéramos más seguido?','¿Cómo te imaginas nuestra vida en 5 años?','¿Qué es lo que más te hace reír de mí?','¿Cuál ha sido nuestro mejor día?','¿Qué pequeño detalle mío te encanta?','¿Qué comida te gustaría que cocináramos juntos?','¿Qué te hace sentir más amada/o?','¿Cuál es tu apodo favorito para mí?','¿Qué película veríamos una y otra vez?','Si fuéramos personajes de una historia, ¿cuál sería?'];
@@ -366,6 +367,7 @@ async function start(u){
   $('login').classList.add('hidden');$('app').classList.remove('hidden');
   const {data:prof}=await sb.from('profiles').select('*').eq('user_id',me).maybeSingle();
   myName=prof?.name||u.user_metadata?.name||u.email.split('@')[0];
+  if(prof){(prof.hidden||[]).forEach(x=>hidden.add(x));(prof.hidden_hot||[]).forEach(x=>hiddenHot.add(x))}
   if(!prof){const {error}=await sb.from('profiles').insert({user_id:me,name:myName});if(error){show('Esta cuenta no está autorizada para este chat.');return}}
   await loadCouple(); await loadProfiles(); await loadMessages(); subscribe(); stamp(); checkPushState(); buildColors(); applyTheme();
   if(isIOS&&!standalone)show('Para notificaciones en iPhone: Compartir ⬆ → "Agregar a inicio", y abre desde ese ícono.');
