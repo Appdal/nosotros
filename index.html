@@ -304,6 +304,11 @@ const standalone=matchMedia('(display-mode: standalone)').matches||navigator.sta
 let me=null,myName='',other=null,names={},msgs=[],byId={},profiles={},online={},replying=null,selId=null,first=true,channel=null,actx=null,lastReadSent=0;
 let couple={};
 const urlCache={};
+let hidden=new Set(),hiddenHot=new Set();
+try{hidden=new Set(JSON.parse(localStorage.getItem('hidden')||'[]'))}catch(e){}
+try{hiddenHot=new Set(JSON.parse(localStorage.getItem('hiddenHot')||'[]'))}catch(e){}
+function hideForMe(id){hidden.add(id);try{localStorage.setItem('hidden',JSON.stringify([...hidden]))}catch(e){}selId=null;render()}
+function hideHotForMe(id){hiddenHot.add(id);try{localStorage.setItem('hiddenHot',JSON.stringify([...hiddenHot]))}catch(e){}renderHot()}
 
 const PALETTES={rosa:['#c42f4a','#ff8a65'],morado:['#7c3aed','#f472b6'],azul:['#2563eb','#38bdf8'],verde:['#0d9488','#fbbf24'],rojo:['#dc2626','#fb923c'],durazno:['#e05a7a','#ffb085']};
 const QUESTIONS=['¿Cuál fue el momento en que supiste que te gustaba?','¿Qué es lo primero que notaste de mí?','Si pudiéramos viajar mañana, ¿a dónde?','¿Cuál es tu recuerdo favorito juntos?','¿Qué canción te recuerda a mí?','¿Qué te gustaría que hiciéramos más seguido?','¿Cómo te imaginas nuestra vida en 5 años?','¿Qué es lo que más te hace reír de mí?','¿Cuál ha sido nuestro mejor día?','¿Qué pequeño detalle mío te encanta?','¿Qué comida te gustaría que cocináramos juntos?','¿Qué te hace sentir más amada/o?','¿Cuál es tu apodo favorito para mí?','¿Qué película veríamos una y otra vez?','Si fuéramos personajes de una historia, ¿cuál sería?'];
@@ -414,6 +419,7 @@ function render(){
   if(!msgs.length){const e=document.createElement('div');e.className='empty';e.textContent='Aún no hay mensajes. ¡Escribe el primero! ❤️';wrap.appendChild(e)}
   let lastDay='',lastMine=null;
   for(const m of msgs){
+    if(hidden.has(m.id))continue;
     const dk=new Date(m.created_at).toDateString();
     if(dk!==lastDay){lastDay=dk;const d=document.createElement('div');d.className='day';d.textContent=dayLabel(m.created_at);wrap.appendChild(d)}
     if(m.kind==='buzz'){const z=document.createElement('div');z.className='bz';z.textContent='⚡ '+(m.sender===me?'Enviaste un zumbido':who(m.sender)+' te envió un zumbido')+((m.body||'').trim()?' — '+m.body:'')+' · '+hm(m.created_at);wrap.appendChild(z);continue}
@@ -429,7 +435,7 @@ function render(){
     for(const e of ['❤️','😂','😮','😍','🔥']){const eb=document.createElement('button');eb.className='emo';eb.textContent=e;eb.onclick=ev=>{ev.stopPropagation();react(m,e)};acts.appendChild(eb)}
     const fb=document.createElement('button');fb.className='tb';fb.textContent=m.fav?'★':'☆';fb.onclick=ev=>{ev.stopPropagation();toggleFav(m)};acts.appendChild(fb);
     const rb=document.createElement('button');rb.className='tb';rb.textContent='Responder';rb.onclick=ev=>{ev.stopPropagation();startReply(m)};acts.appendChild(rb);
-    if(mine){const x=document.createElement('button');x.className='tb';x.textContent='Eliminar';x.onclick=ev=>{ev.stopPropagation();del(m)};acts.appendChild(x);lastMine=m}
+    const x=document.createElement('button');x.className='tb';x.textContent='Borrar para mí';x.onclick=ev=>{ev.stopPropagation();hideForMe(m.id)};acts.appendChild(x);if(mine)lastMine=m;
     b.appendChild(acts);
     b.onclick=ev=>{if(ev.target.closest('button,video,audio,.att,.q'))return;selId=selId===m.id?null:m.id;render()};
     swipe(b,m);wrap.appendChild(b);
@@ -565,10 +571,10 @@ $('hotBack').onclick=closeHot;$('hotLock').onclick=closeHot;
 $('hot').querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>showPane(b.dataset.pane));
 function showPane(p){$('hot').querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('sel',b.dataset.pane===p));$('hot').querySelectorAll('.pane').forEach(pa=>pa.classList.toggle('on',pa.id===p))}
 async function loadHot(){const {data}=await sb.from('hot_msgs').select('*').order('created_at',{ascending:true}).limit(300);hotMsgs=data||[];const now=Date.now();for(const m of hotMsgs){if(m.burn>0&&now-new Date(m.created_at).getTime()>m.burn*1000){sb.from('hot_msgs').delete().eq('id',m.id);if(m.media_path)sb.storage.from('media').remove([m.media_path])}}renderHot()}
-function renderHot(){const w=$('hotWrap');w.innerHTML='';const box=w.parentElement;const near=box.scrollHeight-box.scrollTop-box.clientHeight<200;if(!hotMsgs.length){w.innerHTML='<div class="empty">Su espacio privado. Lo que escriban aquí es solo de ustedes. 🔥</div>'}for(const m of hotMsgs){const now=Date.now();if(m.burn>0&&now-new Date(m.created_at).getTime()>m.burn*1000)continue;const mine=m.sender===me;const b=document.createElement('div');b.className='m'+(mine?' me':'');b.style.maxWidth='min(82%,480px)';if(m.kind==='image'){if(m.burn===-1&&!mine){const ph=document.createElement('div');ph.className='ph';ph.style.display='grid';ph.style.placeItems='center';ph.textContent='👁 Toca para ver una vez';ph.onclick=()=>{mediaUrl(m.media_path).then(u=>{$('bigImg').src=u;$('ovBig').classList.add('on');burnNow(m)})};b.appendChild(ph)}else{const ph=document.createElement('div');ph.className='ph';b.appendChild(ph);mediaUrl(m.media_path).then(u=>{const i=document.createElement('img');i.className='att';i.src=u;i.onclick=()=>{$('bigImg').src=u;$('ovBig').classList.add('on');if(m.burn===-1&&!mine)burnNow(m)};ph.replaceWith(i)}).catch(()=>ph.textContent='No disponible')}}
+function renderHot(){const w=$('hotWrap');w.innerHTML='';const box=w.parentElement;const near=box.scrollHeight-box.scrollTop-box.clientHeight<200;if(!hotMsgs.length){w.innerHTML='<div class="empty">Su espacio privado. Lo que escriban aquí es solo de ustedes. 🔥</div>'}for(const m of hotMsgs){const now=Date.now();if(hiddenHot.has(m.id))continue;if(m.burn>0&&now-new Date(m.created_at).getTime()>m.burn*1000)continue;const mine=m.sender===me;const b=document.createElement('div');b.className='m'+(mine?' me':'');b.style.maxWidth='min(82%,480px)';if(m.kind==='image'){if(m.burn===-1&&!mine){const ph=document.createElement('div');ph.className='ph';ph.style.display='grid';ph.style.placeItems='center';ph.textContent='👁 Toca para ver una vez';ph.onclick=()=>{mediaUrl(m.media_path).then(u=>{$('bigImg').src=u;$('ovBig').classList.add('on');burnNow(m)})};b.appendChild(ph)}else{const ph=document.createElement('div');ph.className='ph';b.appendChild(ph);mediaUrl(m.media_path).then(u=>{const i=document.createElement('img');i.className='att';i.src=u;i.onclick=()=>{$('bigImg').src=u;$('ovBig').classList.add('on');if(m.burn===-1&&!mine)burnNow(m)};ph.replaceWith(i)}).catch(()=>ph.textContent='No disponible')}}
     if(m.body){if(m.burn===-1&&!mine){const sp=document.createElement('span');sp.textContent='👁 Toca para leer una vez';sp.style.fontStyle='italic';b.appendChild(sp);b.onclick=()=>{b.textContent=m.body;burnNow(m)}}else b.appendChild(document.createTextNode(m.body))}
     const t=document.createElement('span');t.className='t';t.textContent=(m.burn===-1?'👁 ':m.burn>0?'⏳ ':'')+hm(m.created_at);b.appendChild(t);
-    if(mine){b.ondblclick=async()=>{await sb.from('hot_msgs').delete().eq('id',m.id);if(m.media_path)sb.storage.from('media').remove([m.media_path]);loadHot()}}
+    b.ondblclick=()=>{if(confirm('¿Borrar este mensaje de tu pantalla? Al otro le seguirá apareciendo.'))hideHotForMe(m.id)};
     w.appendChild(b)}
   if(near)box.scrollTop=box.scrollHeight}
 async function burnNow(m){setTimeout(async()=>{await sb.from('hot_msgs').delete().eq('id',m.id);if(m.media_path)sb.storage.from('media').remove([m.media_path]);loadHot()},1200)}
