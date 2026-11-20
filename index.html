@@ -162,11 +162,13 @@ input[type=file]{display:none}
 <header>
   <div class="av" id="av">♥</div>
   <div class="hd"><h2 id="title">Nosotros</h2><div class="sub" id="sub">Conectando…</div></div>
+  <button class="btn" id="search" aria-label="Buscar en el chat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg></button>
   <button class="btn" id="love" aria-label="Pensando en ti"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21C7 17.5 3 14 3 9.5 3 6.5 5.2 4.5 8 4.5c2 0 3.3 1.1 4 2.3.7-1.2 2-2.3 4-2.3 2.8 0 5 2 5 5 0 4.5-4 8-9 11.5z"/></svg></button>
   <button class="btn" id="buzz" aria-label="Enviar zumbido"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M13.5 2 4 13.5h6.5L9.5 22 20 9.5h-6.6z"/></svg></button>
   <button class="btn" id="menu" aria-label="Ajustes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg></button>
 </header>
 <div id="pin"><b>📌</b><span id="pinText"></span><button class="x" id="pinX" aria-label="Quitar">✕</button></div>
+<div id="searchbar" style="display:none;align-items:center;gap:8px;padding:8px 12px;background:var(--bar);border-bottom:1px solid var(--line)"><input id="searchIn" placeholder="Buscar palabra…" style="flex:1;font:15px Figtree,sans-serif;padding:9px 14px;border-radius:99px;border:1px solid var(--line);background:var(--bg);color:var(--ink);outline:none"><span id="searchCount" style="font-size:13px;color:var(--soft);white-space:nowrap"></span><button class="btn" id="searchPrev" aria-label="Anterior" style="width:34px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 15l-6-6-6 6"/></svg></button><button class="btn" id="searchNext" aria-label="Siguiente" style="width:34px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></button><button class="btn" id="searchX" aria-label="Cerrar" style="width:34px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
 <p id="note" class="hidden"></p>
 <main id="list"><div class="wrap" id="wrap"></div></main>
 <footer>
@@ -481,6 +483,15 @@ async function sendLove(t){$('ovLove').classList.remove('on');$('lvIn').value=''
 /* ---------- pin fijado ---------- */
 $('pinX').onclick=()=>saveCouple({pinned:null});
 function pinMsg(m){saveCouple({pinned:{id:m.id,text:snip(m),by:m.sender}});flash('📌 Mensaje fijado')}
+
+/* ---------- buscador por palabra ---------- */
+let searchHits=[],searchPos=0;
+$('search').onclick=()=>{const b=$('searchbar');const open=b.style.display!=='none';b.style.display=open?'none':'flex';if(!open){$('searchIn').value='';searchHits=[];$('searchCount').textContent='';setTimeout(()=>$('searchIn').focus(),50)}};
+$('searchX').onclick=()=>{$('searchbar').style.display='none';$('searchIn').value='';searchHits=[]};
+$('searchIn').addEventListener('input',()=>{const q=$('searchIn').value.trim().toLowerCase();if(!q){searchHits=[];$('searchCount').textContent='';return}searchHits=msgs.filter(m=>m.kind!=='buzz'&&String(m.body||'').toLowerCase().includes(q)).map(m=>m.id);searchPos=searchHits.length-1;$('searchCount').textContent=searchHits.length?(searchPos+1)+'/'+searchHits.length:'0';if(searchHits.length)jumpTo(searchHits[searchPos])});
+$('searchIn').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();stepSearch(-1)}});
+function stepSearch(dir){if(!searchHits.length)return;searchPos=(searchPos+dir+searchHits.length)%searchHits.length;$('searchCount').textContent=(searchPos+1)+'/'+searchHits.length;jumpTo(searchHits[searchPos])}
+$('searchPrev').onclick=()=>stepSearch(-1);$('searchNext').onclick=()=>stepSearch(1);
 
 /* ---------- perfil (tipo WhatsApp, al tocar el nombre) ---------- */
 document.querySelector('.hd').addEventListener('click',openProfile);
