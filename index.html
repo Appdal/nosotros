@@ -631,7 +631,7 @@ function render(){
   for(const el of [...wrap.children])if(!want.has(el))el.remove();
   let c=wrap.firstChild;for(const n of nodes){if(n===c){c=c.nextSibling;continue}wrap.insertBefore(n,c)}
   for(const k of nodeCache.keys())if(!usedKeys.has(k))nodeCache.delete(k);
-  if(near)list.scrollTop=list.scrollHeight;first=false;
+  if(near)list.scrollTop=list.scrollHeight;first=false;noteCleanup();
 }
 function jumpTo(id){const el=wrap.querySelector('[data-id="'+id+'"]');if(!el)return;el.scrollIntoView({block:'center',behavior:'smooth'});el.classList.add('flash');setTimeout(()=>el.classList.remove('flash'),1200)}
 function swipe(b,getM){let x0=0,y0=0,dx=0,on=false;b.addEventListener('touchstart',e=>{const t=e.touches[0];x0=t.clientX;y0=t.clientY;dx=0;on=true},{passive:true});b.addEventListener('touchmove',e=>{if(!on)return;const t=e.touches[0],mx=t.clientX-x0,my=t.clientY-y0;if(Math.abs(my)>Math.abs(mx)&&Math.abs(my)>10){on=false;b.style.transform='';return}if(mx>0){dx=Math.min(80,mx);b.classList.add('swiping');b.style.transform='translateX('+dx+'px)'}},{passive:true});b.addEventListener('touchend',()=>{b.classList.remove('swiping');b.style.transform='';if(on&&dx>55)startReply(getM());on=false})}
@@ -999,6 +999,15 @@ async function hotNotify(){if(!other||hotNoteBusy)return;hotNoteBusy=true;try{
   else{const {data,error}=await sb.from('messages').insert({kind:'note',body:'🔥 '+(who(me)==='Tú'?(myName.split(' ')[0]||'Tu pareja'):'')+' te escribió en el chat privado'}).select().single();if(error)throw error;if(!byId[data.id]){msgs.push(data);byId[data.id]=data;render()}id=data.id}
   if(id&&!(online[other]))sb.functions.invoke('notify',{body:{message_id:id}}).catch(()=>{})}catch(e){}finally{hotNoteBusy=false}}
 
+/* el aviso del chat privado desaparece 1 minuto después de que la pareja lo ve (o al entrar al chat privado):
+   quien lo recibe lo oculta en su pantalla y quien lo envió lo borra del servidor */
+const noteTimers={};
+function noteCleanup(){if(!me)return;const oRead=new Date(profiles[other]?.last_read||0).getTime();
+  for(const m of msgs){if(m.kind!=='note'||noteTimers[m.id])continue;const id=m.id;
+    if(m.sender!==me){if(!hidden.has(id)&&!document.hidden)noteTimers[id]=setTimeout(()=>{hidden.add(id);render();saveHidden()},60000)}
+    else if(oRead>=new Date(m.created_at).getTime())noteTimers[id]=setTimeout(async()=>{try{await sb.from('messages').delete().eq('id',id)}catch(e){}msgs=msgs.filter(x=>x.id!==id);delete byId[id];render()},60000)}}
+function hideNotesNow(){let ch=false;for(const m of msgs)if(m.kind==='note'&&m.sender!==me&&!hidden.has(m.id)){hidden.add(m.id);ch=true}if(ch){render();saveHidden()}}
+
 /* ---------- ZONA HOT ---------- */
 let hotTaps=0,hotTimer=null,hotMsgs=[],hotPending=null;
 /* un toque en su foto = verla en grande · tres toques seguidos = zona privada */
@@ -1008,7 +1017,7 @@ $('profAv').style.cursor='pointer';$('profAv').addEventListener('click',()=>{$('
 $('myAv').style.cursor='pointer';$('myAv').addEventListener('click',()=>showAvatar(me));
 function openHotGate(){if(!couple.hotPin){$('pinTitle').textContent='Crea tu zona privada 🔒';$('pinMsg').textContent='Elige un PIN de 4 dígitos. Lo usarán los dos.';}else{$('pinTitle').textContent='Zona privada 🔒';$('pinMsg').textContent='Escribe el PIN de 4 dígitos.'}$('pinInput').value='';$('pinErr').textContent='';$('ovPin').classList.add('on');setTimeout(()=>$('pinInput').focus(),100)}
 $('pinGo').onclick=async()=>{const v=$('pinInput').value;if(!/^\d{4}$/.test(v)){$('pinErr').textContent='Deben ser 4 números.';return}if(!couple.hotPin){await saveCouple({hotPin:v});openHot()} else if(v===couple.hotPin){openHot()} else {$('pinErr').textContent='PIN incorrecto.';$('pinInput').value=''}};
-function openHot(){$('ovPin').classList.remove('on');document.documentElement.setAttribute('data-hot','');$('hot').classList.add('on');applyTheme();showPane('hchat');loadHot();renderSem();renderFant()}
+function openHot(){hideNotesNow();$('ovPin').classList.remove('on');document.documentElement.setAttribute('data-hot','');$('hot').classList.add('on');applyTheme();showPane('hchat');loadHot();renderSem();renderFant()}
 function closeHot(){$('hot').classList.remove('on');document.documentElement.removeAttribute('data-hot')}
 $('hotBack').onclick=closeHot;$('hotLock').onclick=closeHot;
 $('hot').querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>showPane(b.dataset.pane));
