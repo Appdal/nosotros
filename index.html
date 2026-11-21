@@ -338,6 +338,24 @@ input[type=file]{display:none}
 #bigImg,#bigVid{touch-action:pan-y pinch-zoom}
 #bigNav{display:flex;align-items:center;gap:12px;color:#fff}
 #bigNav button:disabled{opacity:.45}
+
+/* pantalla de llamada estilo WhatsApp: letra del sistema, barra inferior en cápsula y botón lateral */
+#callUI{font-family:Roboto,"Segoe UI",-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;background:#0b141a}
+#callUI .cinfo h3{font:500 22px/1.25 Roboto,"Segoe UI",-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;letter-spacing:.1px}
+#callUI .cinfo p{font-size:14px;opacity:.8;letter-spacing:.2px}
+#callUI.live:not(.audio):not(.mini) .cinfo{align-items:center;padding:0;margin:calc(12px + env(safe-area-inset-top)) auto 0;padding:8px 18px;border-radius:22px;background:rgba(11,20,26,.42);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);text-shadow:none;gap:2px}
+#callUI.live:not(.audio):not(.mini) .cinfo h3{font-size:17px}
+#callUI.live:not(.audio):not(.mini) .cinfo p{font-size:13px}
+#callUI .cb{width:56px;height:56px;background:#2a3237;backdrop-filter:none;-webkit-backdrop-filter:none}
+#callUI .cb svg{width:26px;height:26px}
+#callUI .cb.off{background:#fff;color:#0b141a}
+#callUI .cb.red{background:#ea0038}#callUI .cb.green{background:#00a884}
+#cAct{margin:auto auto calc(16px + env(safe-area-inset-bottom));width:max-content;max-width:calc(100% - 24px);padding:10px 12px;gap:14px;border-radius:44px;background:rgba(17,27,33,.92);box-shadow:0 6px 24px rgba(0,0,0,.35);flex-wrap:nowrap}
+#cIn{gap:64px;padding-bottom:calc(44px + env(safe-area-inset-bottom))}
+#cIn .cb{width:64px;height:64px}
+.cside{position:absolute;z-index:3;right:14px;bottom:calc(104px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:14px}
+.cside .cb{background:rgba(17,27,33,.85)!important}
+#cAct.hidden~.cside,#callUI.audio .cside,#callUI.mini .cside{display:none}
 </style>
 </head>
 <body>
@@ -554,11 +572,11 @@ input[type=file]{display:none}
   </div>
   <div class="cbtns hidden" id="cAct">
     <button class="cb" id="cMin" aria-label="Minimizar llamada" title="Minimizar y ver el chat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
-    <button class="cb" id="cMute" aria-label="Silenciar micrófono">🎙️</button>
-    <button class="cb" id="cCam" aria-label="Cámara">📷</button>
-    <button class="cb" id="cFlip" aria-label="Cambiar cámara">🔄</button>
+    <button class="cb" id="cCam" aria-label="Apagar cámara"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M15.5 6H4.5A1.5 1.5 0 0 0 3 7.5v9A1.5 1.5 0 0 0 4.5 18h11a1.5 1.5 0 0 0 1.5-1.5v-3l4 3.2V7.3l-4 3.2v-3A1.5 1.5 0 0 0 15.5 6z"/></svg></button>
+    <button class="cb" id="cMute" aria-label="Silenciar micrófono"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 14.5a3.5 3.5 0 0 0 3.5-3.5V5a3.5 3.5 0 0 0-7 0v6a3.5 3.5 0 0 0 3.5 3.5zm6-3.5a6 6 0 0 1-12 0H4.3a7.7 7.7 0 0 0 6.85 7.63V21h1.7v-2.37A7.7 7.7 0 0 0 19.7 11z"/></svg></button>
     <button class="cb red" id="cEnd" aria-label="Colgar"><svg viewBox="0 0 24 24" fill="currentColor" style="transform:rotate(135deg)"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1A17 17 0 0 1 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1z"/></svg></button>
   </div>
+  <div class="cside" id="cSide"><button class="cb" id="cFlip" aria-label="Cambiar cámara"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8.5A1.5 1.5 0 0 1 5.5 7h2.2L9.2 5h5.6l1.5 2h2.2A1.5 1.5 0 0 1 20 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5z"/><path d="M8.6 12.3a3.5 3.5 0 0 1 6.2-1.8M15.4 14a3.5 3.5 0 0 1-6.2 1.6"/><path d="M15.3 8.8v1.9h-1.9M8.7 17.4v-1.9h1.9"/></svg></button></div>
 </div>
 <div id="fx"></div>
 
@@ -1383,7 +1401,7 @@ const cui=$('callUI');
 function cState(cls,status){cui.classList.remove('waiting','live');if(cls)cui.classList.add(cls);if(status!=null)$('cStatus').textContent=status}
 function showCallUI(video,incoming){cui.classList.add('on');cui.classList.remove('mini');cui.classList.toggle('audio',!video);$('cName').textContent=otherName()||'Tu pareja';
   const avph=couple.avatars&&other&&couple.avatars[other];const ca=$('cAv');ca.innerHTML='';if(avph){const i=document.createElement('img');mediaUrl(avph).then(u=>i.src=u).catch(()=>{});ca.appendChild(i)}else ca.textContent=(otherName()||'♥')[0].toUpperCase();
-  $('lv').style.display=incoming||!video?'none':'';$('cIn').classList.toggle('hidden',!incoming);$('cAct').classList.toggle('hidden',incoming);$('cCam').classList.toggle('hidden',!video);$('cFlip').classList.toggle('hidden',!video);$('cMute').classList.remove('off');$('cCam').classList.remove('off')}
+  $('lv').style.display=incoming||!video?'none':'';$('cIn').classList.toggle('hidden',!incoming);$('cAct').classList.toggle('hidden',incoming);$('cCam').classList.toggle('hidden',!video);$('cFlip').classList.toggle('hidden',!video);$('cMute').classList.remove('off');$('cCam').classList.remove('off');$('cMute').innerHTML=MIC_ICO;$('cCam').innerHTML=CAM_ICO}
 function startRing(kind){
   stopRing();unlock();
   const play=()=>{
@@ -1437,8 +1455,9 @@ $('cAcc').onclick=async()=>{if(!call||call.role!=='in')return;unlock();stopRing(
   $('lv').srcObject=call.stream;showCallUI(call.video,false);cState('waiting','Conectando…');call.pc=await makePC();sig('accept')};
 $('cRej').onclick=()=>{if(!call)return;sig('reject');endCall('',false)};
 $('cEnd').onclick=()=>{if(!call)return;sig('hangup');endCall(call.t0?'Llamada terminada':'Llamada cancelada',call.role==='out',call.t0?null:'cancelada')};
-$('cMute').onclick=()=>{if(!call||!call.stream)return;const t=call.stream.getAudioTracks()[0];if(!t)return;t.enabled=!t.enabled;$('cMute').classList.toggle('off',!t.enabled);$('cMute').textContent=t.enabled?'🎙️':'🔇'};
-$('cCam').onclick=()=>{if(!call||!call.stream)return;const t=call.stream.getVideoTracks()[0];if(!t)return;t.enabled=!t.enabled;if(call.dz)call.dz.out.enabled=t.enabled;$('cCam').classList.toggle('off',!t.enabled)};
+$('cMute').onclick=()=>{if(!call||!call.stream)return;const t=call.stream.getAudioTracks()[0];if(!t)return;t.enabled=!t.enabled;$('cMute').classList.toggle('off',!t.enabled);$('cMute').innerHTML=t.enabled?MIC_ICO:MICOFF_ICO};
+const MIC_ICO='<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 14.5a3.5 3.5 0 0 0 3.5-3.5V5a3.5 3.5 0 0 0-7 0v6a3.5 3.5 0 0 0 3.5 3.5zm6-3.5a6 6 0 0 1-12 0H4.3a7.7 7.7 0 0 0 6.85 7.63V21h1.7v-2.37A7.7 7.7 0 0 0 19.7 11z"/></svg>',MICOFF_ICO='<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 14.5a3.5 3.5 0 0 0 3.5-3.5V5a3.5 3.5 0 0 0-7 0v6a3.5 3.5 0 0 0 3.5 3.5zm6-3.5a6 6 0 0 1-12 0H4.3a7.7 7.7 0 0 0 6.85 7.63V21h1.7v-2.37A7.7 7.7 0 0 0 19.7 11z"/><path d="M3.5 3.5l17 17" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>',CAM_ICO='<svg viewBox="0 0 24 24" fill="currentColor"><path d="M15.5 6H4.5A1.5 1.5 0 0 0 3 7.5v9A1.5 1.5 0 0 0 4.5 18h11a1.5 1.5 0 0 0 1.5-1.5v-3l4 3.2V7.3l-4 3.2v-3A1.5 1.5 0 0 0 15.5 6z"/></svg>',CAMOFF_ICO='<svg viewBox="0 0 24 24" fill="currentColor"><path d="M15.5 6H4.5A1.5 1.5 0 0 0 3 7.5v9A1.5 1.5 0 0 0 4.5 18h11a1.5 1.5 0 0 0 1.5-1.5v-3l4 3.2V7.3l-4 3.2v-3A1.5 1.5 0 0 0 15.5 6z"/><path d="M3 3.5l17 17" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
+$('cCam').onclick=()=>{if(!call||!call.stream)return;const t=call.stream.getVideoTracks()[0];if(!t)return;t.enabled=!t.enabled;if(call.dz)call.dz.out.enabled=t.enabled;$('cCam').classList.toggle('off',!t.enabled);$('cCam').innerHTML=t.enabled?CAM_ICO:CAMOFF_ICO};
 $('cFlip').onclick=async()=>{if(!call||!call.stream||!call.video)return;const facing=call.facing==='user'?'environment':'user';try{const ns=await navigator.mediaDevices.getUserMedia({video:{facingMode:facing}});const nt=ns.getVideoTracks()[0];const old=call.stream.getVideoTracks()[0];const snd=call.pc&&call.pc.getSenders().find(s=>s.track&&s.track.kind==='video');if(call.dz){call.dz.v.srcObject=new MediaStream([nt]);call.dz.v.play().catch(()=>{})}else if(snd)await snd.replaceTrack(nt);if(old){call.stream.removeTrack(old);old.stop()}call.stream.addTrack(nt);call.facing=facing;call.camZ=1;call.camX=call.camY=0;$('lv').srcObject=call.dz?new MediaStream([call.dz.out]):call.stream;$('lv').classList.toggle('back',facing!=='user')}catch(e){flash('No se pudo cambiar de cámara')}};
 /* --- terminar --- */
 async function endCall(text,logIt,outcome){const c=call;if(!c)return;call=null;if(c.dz){clearInterval(c.dz.timer);try{c.dz.out.stop()}catch(e){}}clearInterval(c.pushIv);clearInterval(ringIv);clearTimeout(c.noAns);clearInterval(c.watch);clearInterval(c.timer);stopRing();
