@@ -344,7 +344,7 @@ input[type=file]{display:none}
 #callUI{font-family:Roboto,"Segoe UI",-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;background:#0b141a}
 #callUI .cinfo h3{font:500 22px/1.25 Roboto,"Segoe UI",-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;letter-spacing:.1px}
 #callUI .cinfo p{font-size:14px;opacity:.8;letter-spacing:.2px}
-#callUI.live:not(.audio):not(.mini) .cinfo{align-items:center;padding:0;margin:calc(12px + env(safe-area-inset-top)) auto 0;padding:8px 18px;border-radius:22px;background:rgba(11,20,26,.42);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);text-shadow:none;gap:2px}
+#callUI.live:not(.audio):not(.mini) .cinfo{align-items:center;padding:0 70px;margin:calc(22px + env(safe-area-inset-top)) auto 0;text-shadow:0 1px 3px rgba(0,0,0,.55);gap:2px}
 #callUI.live:not(.audio):not(.mini) .cinfo h3{font-size:17px}
 #callUI.live:not(.audio):not(.mini) .cinfo p{font-size:13px}
 #callUI .cb{width:56px;height:56px;background:#2a3237;backdrop-filter:none;-webkit-backdrop-filter:none}
@@ -354,9 +354,17 @@ input[type=file]{display:none}
 #cAct{margin:auto auto calc(16px + env(safe-area-inset-bottom));width:max-content;max-width:calc(100% - 24px);padding:10px 12px;gap:14px;border-radius:44px;background:rgba(17,27,33,.92);box-shadow:0 6px 24px rgba(0,0,0,.35);flex-wrap:nowrap}
 #cIn{gap:64px;padding-bottom:calc(44px + env(safe-area-inset-bottom))}
 #cIn .cb{width:64px;height:64px}
-.cside{position:absolute;z-index:3;right:14px;bottom:calc(104px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:14px}
-.cside .cb{background:rgba(17,27,33,.85)!important}
-#cAct.hidden~.cside,#callUI.audio .cside,#callUI.mini .cside{display:none}
+/* cambiar cámara: dentro de tu recuadro, arriba a la derecha (la posición la pone el código) */
+.cside{position:absolute;z-index:3;left:0;top:0;display:flex;flex-direction:column;gap:10px;pointer-events:none}
+.cside .cb{pointer-events:auto;width:40px!important;height:40px!important;background:rgba(17,27,33,.78)!important}
+.cside .cb svg{width:22px!important;height:22px!important}
+#cAct.hidden~.cside,#callUI.audio .cside,#callUI.mini .cside,.cside.off{display:none}
+/* minimizar: círculo arriba a la izquierda */
+#cMin.ctop{position:absolute;z-index:3;left:12px;top:calc(14px + env(safe-area-inset-top));width:52px;height:52px;background:rgba(17,27,33,.78)}
+#cMin.ctop svg{width:24px;height:24px}
+#cAct.hidden~#cMin,#callUI.mini #cMin{display:none}
+/* tu cámara: abajo a la derecha, más grande y sin borde */
+#callUI #lv{top:auto;right:12px;bottom:calc(100px + env(safe-area-inset-bottom));width:min(44vw,210px);max-width:none;max-height:42vh;border:0;border-radius:16px;box-shadow:0 4px 16px rgba(0,0,0,.35)}
 </style>
 </head>
 <body>
@@ -572,11 +580,11 @@ input[type=file]{display:none}
     <button class="cb green" id="cAcc" aria-label="Contestar"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1A17 17 0 0 1 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1z"/></svg></button>
   </div>
   <div class="cbtns hidden" id="cAct">
-    <button class="cb" id="cMin" aria-label="Minimizar llamada" title="Minimizar y ver el chat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
     <button class="cb" id="cCam" aria-label="Apagar cámara"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M15.5 6H4.5A1.5 1.5 0 0 0 3 7.5v9A1.5 1.5 0 0 0 4.5 18h11a1.5 1.5 0 0 0 1.5-1.5v-3l4 3.2V7.3l-4 3.2v-3A1.5 1.5 0 0 0 15.5 6z"/></svg></button>
     <button class="cb" id="cMute" aria-label="Silenciar micrófono"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 14.5a3.5 3.5 0 0 0 3.5-3.5V5a3.5 3.5 0 0 0-7 0v6a3.5 3.5 0 0 0 3.5 3.5zm6-3.5a6 6 0 0 1-12 0H4.3a7.7 7.7 0 0 0 6.85 7.63V21h1.7v-2.37A7.7 7.7 0 0 0 19.7 11z"/></svg></button>
     <button class="cb red" id="cEnd" aria-label="Colgar"><svg viewBox="0 0 24 24" fill="currentColor" style="transform:rotate(135deg)"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1A17 17 0 0 1 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1z"/></svg></button>
   </div>
+  <button class="cb ctop" id="cMin" aria-label="Minimizar llamada" title="Minimizar y ver el chat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l6-6M10 19v-5H5M20 4l-6 6M14 5v5h5"/></svg></button>
   <div class="cside" id="cSide"><button class="cb" id="cFlip" aria-label="Cambiar cámara"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8.5A1.5 1.5 0 0 1 5.5 7h2.2L9.2 5h5.6l1.5 2h2.2A1.5 1.5 0 0 1 20 8.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 17.5z"/><path d="M8.6 12.3a3.5 3.5 0 0 1 6.2-1.8M15.4 14a3.5 3.5 0 0 1-6.2 1.6"/><path d="M15.3 8.8v1.9h-1.9M8.7 17.4v-1.9h1.9"/></svg></button></div>
 </div>
 <div id="fx"></div>
@@ -1619,14 +1627,18 @@ const vzUp=e=>{vz.ptrs.delete(e.pointerId);vz.pinch=0};cui.addEventListener('poi
 /* tu ventanita: un dedo la mueve · dos dedos hacen zoom de TU cámara (tu pareja lo ve) · doble toque vuelve a 1× */
 const lv=$('lv'),lvs={ptrs:new Map(),pinch:0,lastTap:0};
 /* la ventanita toma la forma exacta de tu cámara: ves el mismo encuadre que recibe tu pareja (sin recortes) */
-function lvFit(){const w=lv.videoWidth,h=lv.videoHeight;if(!w||!h)return;lv.style.aspectRatio=w+'/'+h;lv.style.width=(w>h?'min(42vw,210px)':'min(30vw,150px)');if(lv.style.left){const r=lv.getBoundingClientRect(),c=cui.getBoundingClientRect();const [x,y]=lvClamp(r.left-c.left,r.top-c.top);lv.style.left=x+'px';lv.style.top=y+'px'}}
+function lvFit(){const w=lv.videoWidth,h=lv.videoHeight;if(!w||!h)return;lv.style.aspectRatio=w+'/'+h;lv.style.width=(w>h?'min(60vw,280px)':'min(44vw,210px)');if(lv.style.left){const r=lv.getBoundingClientRect(),c=cui.getBoundingClientRect();const [x,y]=lvClamp(r.left-c.left,r.top-c.top);lv.style.left=x+'px';lv.style.top=y+'px'}}
 lv.addEventListener('loadedmetadata',lvFit);lv.addEventListener('resize',lvFit);
+function placeSide(){const sd=$('cSide');if(!sd)return;const vis=cui.classList.contains('on')&&!cui.classList.contains('mini')&&lv.style.display!=='none'&&lv.offsetWidth>0;sd.classList.toggle('off',!vis);if(!vis)return;
+  const r=lv.getBoundingClientRect(),c=cui.getBoundingClientRect();sd.style.left=(r.right-c.left-sd.offsetWidth-8)+'px';sd.style.top=(r.top-c.top+8)+'px'}
+new MutationObserver(placeSide).observe(lv,{attributes:true,attributeFilter:['style','class']});new MutationObserver(placeSide).observe(cui,{attributes:true,attributeFilter:['class']});
+try{new ResizeObserver(placeSide).observe(lv)}catch(e){}addEventListener('resize',placeSide);
 function lvClamp(x,y){const r=lv.getBoundingClientRect(),W=cui.clientWidth,H=cui.clientHeight,c=cui.getBoundingClientRect(),ba=$('cAct'),bt=ba.classList.contains('hidden')?H:ba.getBoundingClientRect().top-c.top+12;return [Math.max(6,Math.min(W-r.width-6,x)),Math.max(6,Math.min(Math.min(H,bt)-r.height-6,y))]}
 lv.addEventListener('pointerdown',e=>{if(cui.classList.contains('mini'))return;e.stopPropagation();try{lv.setPointerCapture(e.pointerId)}catch(_){}lvs.ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});lvs.pinch=0;
   if(lvs.ptrs.size===1){const now=Date.now();if(now-lvs.lastTap<300&&call&&(call.camZ||1)>1)camZoomTo(1);lvs.lastTap=now}});
 lv.addEventListener('pointermove',e=>{if(!lvs.ptrs.has(e.pointerId))return;e.stopPropagation();const pv=lvs.ptrs.get(e.pointerId);lvs.ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
   if(lvs.ptrs.size===2){const [a,b]=[...lvs.ptrs.values()],d=Math.hypot(a.x-b.x,a.y-b.y);if(lvs.pinch&&call)camZoomTo((call.camZ||1)*d/lvs.pinch);lvs.pinch=d;return}
-  if(lvs.ptrs.size===1){const r=lv.getBoundingClientRect(),c=cui.getBoundingClientRect();const [x,y]=lvClamp(r.left-c.left+e.clientX-pv.x,r.top-c.top+e.clientY-pv.y);lv.style.left=x+'px';lv.style.top=y+'px';lv.style.right='auto'}});
+  if(lvs.ptrs.size===1){const r=lv.getBoundingClientRect(),c=cui.getBoundingClientRect();const [x,y]=lvClamp(r.left-c.left+e.clientX-pv.x,r.top-c.top+e.clientY-pv.y);lv.style.left=x+'px';lv.style.top=y+'px';lv.style.right='auto';lv.style.bottom='auto'}});
 const lvUp=e=>{lvs.ptrs.delete(e.pointerId);lvs.pinch=0};lv.addEventListener('pointerup',lvUp);lv.addEventListener('pointercancel',lvUp);
 addEventListener('resize',()=>{if(lv.style.left){const r=lv.getBoundingClientRect(),c=cui.getBoundingClientRect();const [x,y]=lvClamp(r.left-c.left,r.top-c.top);lv.style.left=x+'px';lv.style.top=y+'px'}});
 
