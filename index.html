@@ -992,7 +992,7 @@ async function makePC(){const pc=new RTCPeerConnection({iceServers:await iceServ
   for(const t of call.stream.getTracks())pc.addTrack(t.kind==='video'&&call.dz?call.dz.out:t,call.stream);return pc}
 async function flushIce(){if(!call||!call.pc||!call.pc.remoteDescription)return;for(const c of call.iceQ.splice(0))try{await call.pc.addIceCandidate(c)}catch(e){}}
 /* --- quien llama --- */
-async function startCall(video){if(call){flash('Ya hay una llamada en curso');return}if(!other){flash('Tu pareja todavía no tiene cuenta');return}unlock();
+async function startCall(video){if(call){flash('Ya hay una llamada en curso');return}if(!other){flash('Tu pareja todavía no tiene cuenta');return}if(video)fsOn(true);unlock();
   let stream;try{stream=await getMedia(video)}catch(e){flash(video?'Necesito permiso de cámara y micrófono.':'Necesito permiso del micrófono.',5000);return}
   call={cid:Date.now().toString(36)+Math.random().toString(36).slice(2,6),video,role:'out',stream,iceQ:[],facing:'user',t0:0};
   showCallUI(video,false);cState('waiting','Llamando…');$('lv').srcObject=stream;$('lv').classList.remove('back');startRing('out');
@@ -1018,7 +1018,7 @@ async function onSig(p){if(!p||p.from===me)return;
 function sendScreen(){if(call&&call.video)sig('screen',{ar:innerWidth/innerHeight})}
 addEventListener('resize',()=>{clearTimeout(sendScreen.t);sendScreen.t=setTimeout(sendScreen,300)});
 /* --- quien recibe --- */
-$('cAcc').onclick=async()=>{if(!call||call.role!=='in')return;unlock();stopRing();clearInterval(call.watch);call.accepted=true;
+$('cAcc').onclick=async()=>{if(!call||call.role!=='in')return;if(call.video)fsOn();unlock();stopRing();clearInterval(call.watch);call.accepted=true;
   try{call.stream=await getMedia(call.video)}catch(e){flash('Necesito permiso de cámara/micrófono para contestar.',5000);sig('reject');endCall('',false);return}
   $('lv').srcObject=call.stream;showCallUI(call.video,false);cState('waiting','Conectando…');call.pc=await makePC();sig('accept')};
 $('cRej').onclick=()=>{if(!call)return;sig('reject');endCall('',false)};
@@ -1029,7 +1029,7 @@ $('cFlip').onclick=async()=>{if(!call||!call.stream||!call.video)return;const fa
 /* --- terminar --- */
 async function endCall(text,logIt,outcome){const c=call;if(!c)return;call=null;if(c.dz){clearInterval(c.dz.timer);try{c.dz.out.stop()}catch(e){}}clearInterval(c.pushIv);clearInterval(ringIv);clearTimeout(c.noAns);clearInterval(c.watch);clearInterval(c.timer);stopRing();
   try{c.pc&&c.pc.close()}catch(e){}try{c.stream&&c.stream.getTracks().forEach(t=>t.stop())}catch(e){}
-  exitPip();cui.classList.remove('mini','pip');vzReset();$('rv').srcObject=null;$('lv').srcObject=null;if(text){cState(null,text);setTimeout(()=>{if(!call)cui.classList.remove('on')},1400)}else cui.classList.remove('on');
+  exitPip();fsOff();cui.classList.remove('mini','pip');vzReset();$('rv').srcObject=null;$('lv').srcObject=null;if(text){cState(null,text);setTimeout(()=>{if(!call)cui.classList.remove('on')},1400)}else cui.classList.remove('on');
   if(c.role==='out'&&c.msgId&&logIt!==false){const base=c.video?'🎥 Videollamada':'📞 Llamada';const body=c.t0?base+' · '+mmss((Date.now()-c.t0)/1000):base+' '+(outcome||'no contestada');try{await sb.from('messages').update({body}).eq('id',c.msgId);if(!c.t0&&!(other&&online[other]))sb.functions.invoke('notify',{body:{message_id:c.msgId}}).catch(()=>{})}catch(e){}if(byId[c.msgId]){byId[c.msgId].body=body;render()}}}
 $('callA').onclick=()=>startCall(false);$('callV').onclick=()=>startCall(true);
 addEventListener('pagehide',event=>{
@@ -1114,7 +1114,8 @@ $('cMin').onclick=ev=>{
   miniDrag=null;miniMoved=false;miniX=miniY=0;
   cui.style.removeProperty('--mini-x');cui.style.removeProperty('--mini-y');
   cui.classList.add('mini');
-  if(call?.video&&pipOK()){armAutoPip(true);enterPip()}
+  const goPip=()=>{if(call?.video&&pipOK()){armAutoPip(true);enterPip()}};
+  if(document.fullscreenElement){document.addEventListener('fullscreenchange',goPip,{once:true});fsOff()}else goPip();
 };
 cui.addEventListener('pointerdown',ev=>{
   if(!cui.matches('.mini:not(.audio)')||!ev.isPrimary||ev.button!==0)return;
@@ -1135,9 +1136,21 @@ cui.addEventListener('pointercancel',endMiniDrag);
 cui.addEventListener('lostpointercapture',endMiniDrag);
 cui.addEventListener('click',()=>{
   if(!cui.classList.contains('mini'))return;
-  if(!miniMoved)cui.classList.remove('mini');
+  if(!miniMoved){cui.classList.remove('mini');fsOn()}
   miniMoved=false;
 });
+/* pantalla completa real en la videollamada: así Android pasa el video a ventana flotante al salir de la app
+   (iPhone no permite pantalla completa en páginas; allí queda la ventana flotante de Safari) */
+function fsOn(force){
+  if(!force&&!call?.video)return;
+  const root=document.documentElement;if(document.fullscreenElement||!root.requestFullscreen||/iPhone|iPad|iPod/.test(navigator.userAgent))return;
+  try{root.requestFullscreen({navigationUI:'hide'}).catch(()=>{})}catch(e){}
+}
+function fsOff(){try{if(document.fullscreenElement)document.exitFullscreen().catch(()=>{})}catch(e){}}
+/* si se salió de pantalla completa (botón atrás), cualquier toque en la llamada la recupera */
+cui.addEventListener('pointerup',()=>{if(call?.video&&!cui.classList.contains('mini'))fsOn()});
+/* con la llamada minimizada, si la ventana flotante se cerró, cualquier toque en la app la vuelve a abrir */
+document.addEventListener('pointerup',ev=>{if(call?.video&&call.t0&&cui.classList.contains('mini')&&!inPip()&&!cui.contains(ev.target)&&pipOK())enterPip()},true);
 function keepMiniVisible(){if(cui.matches('.mini:not(.audio)'))moveMini(miniX,miniY)}
 window.addEventListener('resize',keepMiniVisible);
 window.visualViewport?.addEventListener('resize',keepMiniVisible);
