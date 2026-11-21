@@ -105,7 +105,14 @@ header .btn{width:36px}
 #list .m.me .vz .bar i,#list .m.me .vz .bar b{background:light-dark(#8696a0,#8696a0)}
 /* tu audio ya fue escuchado: la barra y el punto se pintan de azul, como en WhatsApp */
 #list .m.me .vz.heard .bar i,#list .m.me .vz.heard .bar b{background:#34b7f1}
-#list .m.me .vz.heard button{background:#34b7f1}
+/* audio compacto tipo WhatsApp: ▶ plano a la izquierda, barra al lado, duración debajo y la hora en la misma línea */
+#list .vz{display:grid;grid-template-columns:30px 1fr;column-gap:8px;align-items:center;width:min(240px,64vw);padding:3px 4px 0 0}
+#list .vz button,#list .m.me .vz button{grid-row:1;width:30px;height:30px;background:none;color:light-dark(#54656f,#aebac1);border-radius:0}
+#list .vz button svg{width:28px;height:28px}
+#list .vz .bar{grid-column:2;grid-row:1}
+#list .vz small{grid-column:2;grid-row:2;text-align:left;min-width:0;font-size:11px;line-height:1;margin-top:-1px;color:light-dark(#667781,#8696a0);opacity:1}
+#list .m:has(.vz) .t{margin-top:-12px}
+#list .m:has(.vz){padding-bottom:5px}
 /* audio recibido que aún no escuchaste: punto de color */
 #list .m:not(.me) .vz:not(.heard) .bar b{background:#34b7f1}
 .vz small{font-size:12px;opacity:.85;white-space:nowrap;min-width:34px;text-align:right;font-variant-numeric:tabular-nums}
@@ -318,7 +325,6 @@ input[type=file]{display:none}
 #list .m.me:not(.stkm) .tk{color:light-dark(#667781,#8696a0)}
 #list .m.me:not(.stkm) .tk.r{color:#53bdeb}
 #list .m.me:not(.stkm) .rx span{background:var(--chat-received);border-color:var(--chat-edge)}
-#list .m.me .vz button{background:var(--mine);color:#fff}
 #app>footer{background:var(--wa-paper);border-top:0}
 #app #txt{border:0;box-shadow:var(--wa-shadow);border-radius:24px}
 #app>footer :is(#cam,#gal,#stkBtn){color:light-dark(#54656f,#8696a0)}
