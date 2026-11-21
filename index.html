@@ -1001,7 +1001,11 @@ async function hotNotify(){if(!other||hotNoteBusy)return;hotNoteBusy=true;try{
 
 /* ---------- ZONA HOT ---------- */
 let hotTaps=0,hotTimer=null,hotMsgs=[],hotPending=null;
-av.addEventListener('click',()=>{hotTaps++;clearTimeout(hotTimer);hotTimer=setTimeout(()=>hotTaps=0,900);if(hotTaps>=3){hotTaps=0;openHotGate()}});
+/* un toque en su foto = verla en grande · tres toques seguidos = zona privada */
+av.addEventListener('click',()=>{hotTaps++;clearTimeout(hotTimer);if(hotTaps>=3){hotTaps=0;openHotGate();return}hotTimer=setTimeout(()=>{if(hotTaps===1)showAvatar(other);hotTaps=0},450)});
+function showAvatar(uid){const ph=couple.avatars&&uid&&couple.avatars[uid];if(!ph){flash(uid===me?'Aún no tienes foto de perfil':'Tu pareja aún no tiene foto de perfil');return}mediaUrl(ph).then(u=>showBig(u,false,null,ph)).catch(()=>flash('No se pudo abrir la foto'))}
+$('profAv').style.cursor='pointer';$('profAv').addEventListener('click',()=>{$('ovProfile').classList.remove('on');showAvatar(other)});
+$('myAv').style.cursor='pointer';$('myAv').addEventListener('click',()=>showAvatar(me));
 function openHotGate(){if(!couple.hotPin){$('pinTitle').textContent='Crea tu zona privada 🔒';$('pinMsg').textContent='Elige un PIN de 4 dígitos. Lo usarán los dos.';}else{$('pinTitle').textContent='Zona privada 🔒';$('pinMsg').textContent='Escribe el PIN de 4 dígitos.'}$('pinInput').value='';$('pinErr').textContent='';$('ovPin').classList.add('on');setTimeout(()=>$('pinInput').focus(),100)}
 $('pinGo').onclick=async()=>{const v=$('pinInput').value;if(!/^\d{4}$/.test(v)){$('pinErr').textContent='Deben ser 4 números.';return}if(!couple.hotPin){await saveCouple({hotPin:v});openHot()} else if(v===couple.hotPin){openHot()} else {$('pinErr').textContent='PIN incorrecto.';$('pinInput').value=''}};
 function openHot(){$('ovPin').classList.remove('on');document.documentElement.setAttribute('data-hot','');$('hot').classList.add('on');applyTheme();showPane('hchat');loadHot();renderSem();renderFant()}
