@@ -437,7 +437,7 @@ const realName=id=>String(profiles[id]?.name||'').trim();
 const nickOf=()=>(couple.nicks&&me&&couple.nicks[me])||'';
 const otherName=()=>nickOf()||realName(other);
 const who=id=>id===me?'Tú':(id===other&&nickOf())||names[id]||'Tu pareja';
-const snip=m=>m.kind==='sticker'?'🌟 Sticker':m.kind==='call'?String(m.body||'📞 Llamada'):m.kind==='buzz'?'⚡ Zumbido':m.kind==='image'?'📷 Foto':m.kind==='voice'?'🎤 Audio':m.kind==='video'?'🎬 Video':String(m.body||'').slice(0,120);
+const snip=m=>m.kind==='note'?'🔥 Chat privado':m.kind==='sticker'?'🌟 Sticker':m.kind==='call'?String(m.body||'📞 Llamada'):m.kind==='buzz'?'⚡ Zumbido':m.kind==='image'?'📷 Foto':m.kind==='voice'?'🎤 Audio':m.kind==='video'?'🎬 Video':String(m.body||'').slice(0,120);
 const dayNum=()=>Math.floor((Date.now()-new Date().getTimezoneOffset()*60000)/86400000);
 
 /* ---------- sonido / efectos ---------- */
@@ -619,6 +619,7 @@ function render(){
     if(hidden.has(m.id))continue;
     const dk=new Date(m.created_at).toDateString();
     if(dk!==lastDay){lastDay=dk;const lb=dayLabel(m.created_at);nodes.push(keyed('day:'+dk,lb,()=>{const d=document.createElement('div');d.className='day';d.textContent=lb;return d}))}
+    if(m.kind==='note'){if(m.sender===me)continue;const tx=String(m.body||'🔥 Mensaje nuevo en el chat privado')+' · '+hm(m.created_at);nodes.push(keyed(m.id,tx,()=>{const z=document.createElement('div');z.className='bz note';z.textContent=tx;z.title='Toca para entrar al chat privado';z.onclick=()=>openHotGate();return z}));continue}
     if(m.kind==='call'){const tx=(m.sender===me?'↗ ':'↙ ')+String(m.body||'📞 Llamada')+' · '+hm(m.created_at);nodes.push(keyed(m.id,tx,()=>{const z=document.createElement('div');z.className='bz call';z.textContent=tx;z.title='Toca para llamar';z.onclick=()=>startCall(/🎥/.test(m.body||''));return z}));continue}
     if(m.kind==='buzz'){const tx='⚡ '+(m.sender===me?'Enviaste un zumbido':who(m.sender)+' te envió un zumbido')+((m.body||'').trim()?' — '+m.body:'')+' · '+hm(m.created_at);nodes.push(keyed(m.id,tx,()=>{const z=document.createElement('div');z.className='bz';z.textContent=tx;return z}));continue}
     if(m.sender===me)lastMine=m;
@@ -984,6 +985,20 @@ async function endCall(text,logIt,outcome){const c=call;if(!c)return;call=null;c
 $('callA').onclick=()=>startCall(false);$('callV').onclick=()=>startCall(true);
 addEventListener('pagehide',()=>{if(call){sig('hangup');}});
 
+/* ---------- aviso del chat privado ----------
+   Lo que se escribe en el chat privado nunca va en una notificación. En su lugar se deja un aviso discreto en el
+   chat normal ("🔥 N mensajes nuevos en el chat privado"); ese aviso es el que llega al celular como un mensaje normal.
+   Si la pareja aún no leyó el aviso anterior, se actualiza el contador en vez de crear otro. */
+let hotNoteBusy=false;
+async function hotNotify(){if(!other||hotNoteBusy)return;hotNoteBusy=true;try{
+  const oRead=new Date(profiles[other]?.last_read||0).getTime();
+  const last=[...msgs].reverse().find(m=>m.kind!=='note'||m.sender===me);
+  let id,n=1;
+  if(last&&last.kind==='note'&&last.sender===me&&new Date(last.created_at).getTime()>oRead&&msgs.at(-1)===last){n=(parseInt((/(\d+) mensajes/.exec(last.body||'')||[])[1])||1)+1;const body='🔥 '+n+' mensajes nuevos en el chat privado';
+    const {error}=await sb.from('messages').update({body}).eq('id',last.id);if(error)throw error;last.body=body;id=last.id;render()}
+  else{const {data,error}=await sb.from('messages').insert({kind:'note',body:'🔥 '+(who(me)==='Tú'?(myName.split(' ')[0]||'Tu pareja'):'')+' te escribió en el chat privado'}).select().single();if(error)throw error;if(!byId[data.id]){msgs.push(data);byId[data.id]=data;render()}id=data.id}
+  if(id&&!(online[other]))sb.functions.invoke('notify',{body:{message_id:id}}).catch(()=>{})}catch(e){}finally{hotNoteBusy=false}}
+
 /* ---------- ZONA HOT ---------- */
 let hotTaps=0,hotTimer=null,hotMsgs=[],hotPending=null;
 av.addEventListener('click',()=>{hotTaps++;clearTimeout(hotTimer);hotTimer=setTimeout(()=>hotTaps=0,900);if(hotTaps>=3){hotTaps=0;openHotGate()}});
@@ -1004,8 +1019,8 @@ function renderHot(){const w=$('hotWrap');w.innerHTML='';const box=w.parentEleme
     w.appendChild(b)}
   if(near)box.scrollTop=box.scrollHeight}
 async function burnNow(m){setTimeout(async()=>{await sb.from('hot_msgs').delete().eq('id',m.id);if(m.media_path)sb.storage.from('media').remove([m.media_path]);loadHot()},1200)}
-$('hsend').onclick=async()=>{const v=$('htxt').value.trim();if(!v)return;$('htxt').value='';hotGrow();try{await sb.from('hot_msgs').insert({kind:'text',body:v.slice(0,2000),burn:0});loadHot()}catch(e){flash('No se pudo enviar')}};
-holdToRecord({mic:$('hmic'),bar:$('hrecbar'),time:$('hrectime'),hint:$('hrechint'),hideEl:$('htxt'),onSend:async(blob,dur)=>{const path=await upload(blob,'wav','hot');const {error}=await sb.from('hot_msgs').insert({kind:'voice',media_path:path,duration:dur,burn:0});if(error)throw error;loadHot()}});
+$('hsend').onclick=async()=>{const v=$('htxt').value.trim();if(!v)return;$('htxt').value='';hotGrow();try{await sb.from('hot_msgs').insert({kind:'text',body:v.slice(0,2000),burn:0});hotNotify();loadHot()}catch(e){flash('No se pudo enviar')}};
+holdToRecord({mic:$('hmic'),bar:$('hrecbar'),time:$('hrectime'),hint:$('hrechint'),hideEl:$('htxt'),onSend:async(blob,dur)=>{const path=await upload(blob,'wav','hot');const {error}=await sb.from('hot_msgs').insert({kind:'voice',media_path:path,duration:dur,burn:0});if(error)throw error;hotNotify();loadHot()}});
 function hotGrow(){const has=!!$('htxt').value.trim();$('hsend').classList.toggle('hidden',!has);$('hmic').classList.toggle('hidden',has)}
 $('htxt').addEventListener('input',hotGrow);
 $('htxt').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&matchMedia('(pointer:fine)').matches){e.preventDefault();$('hsend').click()}});
@@ -1013,7 +1028,7 @@ $('hcam').onclick=()=>openCam('hot');
 $('hcamIn').onchange=e=>{const f=e.target.files[0];e.target.value='';if(f)hotPick(f)};
 function hotPick(f){hotPending=f;const isV=(f.type||'').startsWith('video');$('hmTitle').textContent=isV?'Enviar video':'Enviar foto';$('ovHotMedia').classList.add('on')}
 $('hmNormal').onclick=()=>sendHotMedia(0);$('hmOnce').onclick=()=>sendHotMedia(-1);
-async function sendHotMedia(burn){let f=hotPending;hotPending=null;$('ovHotMedia').classList.remove('on');if(!f)return;const isV=(f.type||'').startsWith('video');show(isV?'Enviando video…':'Enviando foto…');try{if(f.size>50*1024*1024)throw new Error('pesa más de 50 MB');const ext=(f.name.split('.').pop()||(isV?'mp4':'jpg')).toLowerCase().replace(/[^a-z0-9]/g,'')||(isV?'mp4':'jpg');const path=await upload(f,ext,'hot');const {error}=await sb.from('hot_msgs').insert({kind:isV?'video':'image',media_path:path,burn});if(error)throw error;show('');loadHot()}catch(e){show('No se pudo enviar: '+(e.message||e))}}
+async function sendHotMedia(burn){let f=hotPending;hotPending=null;$('ovHotMedia').classList.remove('on');if(!f)return;const isV=(f.type||'').startsWith('video');show(isV?'Enviando video…':'Enviando foto…');try{if(f.size>50*1024*1024)throw new Error('pesa más de 50 MB');const ext=(f.name.split('.').pop()||(isV?'mp4':'jpg')).toLowerCase().replace(/[^a-z0-9]/g,'')||(isV?'mp4':'jpg');const path=await upload(f,ext,'hot');const {error}=await sb.from('hot_msgs').insert({kind:isV?'video':'image',media_path:path,burn});if(error)throw error;show('');hotNotify();loadHot()}catch(e){show('No se pudo enviar: '+(e.message||e))}}
 /* ruleta: gira, no repite y publica el reto en el chat */
 let retoRecientes=[];
 try{retoRecientes=JSON.parse(localStorage.getItem('retoRec')||'[]')}catch(e){}
@@ -1024,7 +1039,7 @@ $('spinBtn').onclick=async()=>{
   const final=retoNuevo();let i=0;
   await new Promise(res=>{const iv=setInterval(()=>{box.textContent=RETOS[Math.floor(Math.random()*RETOS.length)];if(++i>14){clearInterval(iv);box.textContent='🎯 '+final;res()}},80)});
   try{navigator.vibrate&&navigator.vibrate(60)}catch(e){}
-  try{await sb.from('hot_msgs').insert({kind:'text',body:'🎲 Reto de la ruleta:\n'+final,burn:0});loadHot()}catch(e){}
+  try{await sb.from('hot_msgs').insert({kind:'text',body:'🎲 Reto de la ruleta:\n'+final,burn:0});hotNotify();loadHot()}catch(e){}
   setTimeout(()=>{btn.disabled=false;spinning=false},800);
 };
 /* semaforo */
