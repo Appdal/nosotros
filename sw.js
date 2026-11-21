@@ -32,24 +32,39 @@ self.addEventListener('fetch', e => {
   }));
 });
 
+// Notificaciones:
+// - Zumbidos (con o sin texto): se muestran normal, con su texto.
+// - Mensajes (texto, foto, audio, video): por privacidad NO se muestra el contenido,
+//   solo "<Nombre> te envió N mensajes". El contador se reinicia al abrir la app.
 self.addEventListener('push', e => {
   let d = {};
-  try { d = e.data ? e.data.json() : {}; } catch (_) { d = { title: 'Nosotros', body: e.data && e.data.text() }; }
+  try { d = e.data ? e.data.json() : {}; } catch (_) { d = { title: 'Nosotros' }; }
   const buzz = !!d.buzz;
-  const opts = {
-    body: d.body || 'Nuevo mensaje',
-    icon: 'icon-192.png',
-    badge: 'icon-192.png',
-    tag: d.tag || 'chat',
-    renotify: true,
-    requireInteraction: buzz,
-    vibrate: buzz ? [300, 100, 300, 100, 300, 100, 500] : [120, 60, 120],
-    data: { url: self.registration.scope }
-  };
-  e.waitUntil(Promise.all([
-    self.registration.showNotification(d.title || 'Nosotros', opts),
-    self.navigator.setAppBadge ? self.navigator.setAppBadge().catch(() => {}) : null
-  ]));
+  const reg = self.registration;
+  e.waitUntil((async () => {
+    let body = d.body || 'Nuevo mensaje', tag = d.tag || 'chat', count = 0;
+    if (!buzz) {
+      tag = 'msgs';
+      try {
+        const prev = reg.getNotifications ? await reg.getNotifications({ tag }) : [];
+        for (const n of prev) count = Math.max(count, (n.data && n.data.count) || 1);
+      } catch (_) {}
+      count += 1;
+      const who = String(d.title || 'Tu pareja').trim() || 'Tu pareja';
+      body = who + (count === 1 ? ' te envió 1 mensaje 💌' : ' te envió ' + count + ' mensajes 💌');
+    }
+    await reg.showNotification(buzz ? (d.title || 'Nosotros') : 'Nosotros', {
+      body,
+      icon: 'icon-192.png',
+      badge: 'icon-192.png',
+      tag,
+      renotify: true,
+      requireInteraction: buzz,
+      vibrate: buzz ? [300, 100, 300, 100, 300, 100, 500] : [120, 60, 120],
+      data: { url: reg.scope, count }
+    });
+    if (self.navigator.setAppBadge) { try { await (count ? self.navigator.setAppBadge(count) : self.navigator.setAppBadge()); } catch (_) {} }
+  })());
 });
 
 self.addEventListener('notificationclick', e => {

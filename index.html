@@ -397,7 +397,7 @@ async function start(u){
   await Promise.all([pCouple,loadProfiles()]); applyMsgs(await pMsgs); subscribe(); stamp(); checkPushState(); buildColors(); applyTheme();
   if(isIOS&&!standalone)show('Para notificaciones en iPhone: Compartir ⬆ → "Agregar a inicio", y abre desde ese ícono.');
   if(navigator.serviceWorker){let reloaded=false;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(reloaded)return;reloaded=true;location.reload()});navigator.serviceWorker.register('sw.js').then(reg=>{reg.update();setInterval(()=>reg.update(),60000)}).catch(()=>{})}
-  try{navigator.clearAppBadge&&navigator.clearAppBadge()}catch(e){}
+  clearNotifs();
 }
 async function loadCouple(){const {data}=await sb.from('couple').select('data').eq('id',1).maybeSingle();couple=data?.data||{};}
 async function saveCouple(patch){couple={...couple,...patch};try{await sb.from('couple').update({data:couple}).eq('id',1)}catch(e){flash('No se pudo guardar')}}
@@ -407,8 +407,8 @@ function applyMsgs({data,error}){if(error){show('No se pudieron cargar los mensa
 async function loadMessages(){applyMsgs(await fetchMsgs())}
 /* trae solo lo que llegó entre la carga inicial y la conexión en vivo */
 async function loadNewer(){const last=msgs.at(-1);if(!last)return loadMessages();const {data}=await sb.from('messages').select('*').gt('created_at',last.created_at).order('created_at',{ascending:true});let add=false;for(const m of data||[]){if(byId[m.id])continue;msgs.push(m);byId[m.id]=m;add=true}if(add){render();markRead()}}
-let subOnce=false;
-function subscribe(){
+let subOnce=false,rtGen=0;
+function subscribe(){const gen=++rtGen;
   channel=sb.channel('sala',{config:{presence:{key:me}}})
    .on('postgres_changes',{event:'INSERT',schema:'public',table:'messages'},p=>{const m=p.new;if(byId[m.id])return;msgs.push(m);byId[m.id]=m;render();if(m.sender!==me){if(m.kind==='buzz'){shake();if((m.body||'').trim())setTimeout(()=>flash('💞 '+m.body,5000),400)}else{ding();try{navigator.vibrate&&navigator.vibrate(60)}catch(e){}}if(onlyHearts(m.body))hearts();markRead()}else if(onlyHearts(m.body))hearts()})
    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'messages'},p=>{const m=p.new;if(byId[m.id]){Object.assign(byId[m.id],m);const i=msgs.findIndex(x=>x.id===m.id);if(i>=0)msgs[i]=byId[m.id];render()}})
@@ -418,9 +418,23 @@ function subscribe(){
    .on('postgres_changes',{event:'INSERT',schema:'public',table:'hot_msgs'},p=>{if($('hot').classList.contains('on'))loadHot()})
    .on('postgres_changes',{event:'DELETE',schema:'public',table:'hot_msgs'},p=>{if($('hot').classList.contains('on'))loadHot()})
    .on('presence',{event:'sync'},()=>{const st=channel.presenceState();const o={};for(const [k,arr] of Object.entries(st)){if(k===me)continue;const a=arr.find(x=>x.active)||null;if(a)o[k]={typing:arr.some(x=>x.typing)}}for(const k of Object.keys(online))if(!o[k]&&profiles[k])profiles[k].last_seen=new Date().toISOString();online=o;status()})
-   .subscribe(async s=>{if(s==='SUBSCRIBED'){await channel.track({active:!document.hidden,typing:false});if(subOnce)await loadMessages();else{subOnce=true;loadNewer()}}});
+   .subscribe(async s=>{if(gen!==rtGen)return;if(s==='SUBSCRIBED'){rtRetry=0;await channel.track({active:!document.hidden,typing:false});if(subOnce)await loadMessages();else{subOnce=true;loadNewer()}}
+     else if(s==='CHANNEL_ERROR'||s==='TIMED_OUT'||s==='CLOSED')reconnect()});
 }
-document.addEventListener('visibilitychange',()=>{channel&&channel.track({active:!document.hidden,typing:false}).catch(()=>{});stamp();if(!document.hidden){markRead();try{navigator.clearAppBadge&&navigator.clearAppBadge()}catch(e){}}});
+/* ---------- mantener el chat al día ----------
+   La conexión en vivo a veces se corta sin avisar (celular en segundo plano, cambio de wifi/datos).
+   Por eso: se reconecta sola si se cae, se revisa al volver a la app o al recuperar internet,
+   y mientras el chat está abierto se revisa cada 15 s si llegó algo que la conexión en vivo no avisó. */
+let rtRetry=0,rtTimer=null,hiddenAt=0;
+function reconnect(){if(rtTimer||!me)return;const wait=Math.min(30000,1000*2**rtRetry++);rtTimer=setTimeout(()=>{rtTimer=null;rtGen++;const old=channel;channel=null;try{if(old)sb.removeChannel(old)}catch(e){}subscribe()},wait)}
+function catchUp(full){if(!me)return;(full?loadMessages():loadNewer()).catch(()=>{});if($('hot').classList.contains('on'))loadHot().catch(()=>{})}
+function clearNotifs(){try{navigator.clearAppBadge&&navigator.clearAppBadge()}catch(e){}try{navigator.serviceWorker&&navigator.serviceWorker.getRegistration().then(r=>r&&r.getNotifications&&r.getNotifications()).then(ns=>(ns||[]).forEach(n=>n.close())).catch(()=>{})}catch(e){}}
+document.addEventListener('visibilitychange',()=>{channel&&channel.track({active:!document.hidden,typing:false}).catch(()=>{});stamp();
+  if(document.hidden){hiddenAt=Date.now();return}
+  markRead();clearNotifs();catchUp(hiddenAt&&Date.now()-hiddenAt>20000);
+  if(channel&&channel.state!=='joined')reconnect()});
+addEventListener('online',()=>{catchUp(true);if(channel&&channel.state!=='joined')reconnect()});
+setInterval(()=>{if(!document.hidden&&me)catchUp(false)},15000);
 async function stamp(){if(me)await sb.from('profiles').update({last_seen:new Date().toISOString()}).eq('user_id',me)}
 
 let avShown=null;
@@ -681,7 +695,8 @@ function closeHot(){$('hot').classList.remove('on');document.documentElement.rem
 $('hotBack').onclick=closeHot;$('hotLock').onclick=closeHot;
 $('hot').querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>showPane(b.dataset.pane));
 function showPane(p){$('hot').querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('sel',b.dataset.pane===p));$('hot').querySelectorAll('.pane').forEach(pa=>pa.classList.toggle('on',pa.id===p))}
-async function loadHot(){const {data}=await sb.from('hot_msgs').select('*').order('created_at',{ascending:true}).limit(300);hotMsgs=data||[];const now=Date.now();for(const m of hotMsgs){if(m.burn>0&&now-new Date(m.created_at).getTime()>m.burn*1000){sb.from('hot_msgs').delete().eq('id',m.id);if(m.media_path)sb.storage.from('media').remove([m.media_path])}}renderHot()}
+let hotSig='';
+async function loadHot(){const {data,error}=await sb.from('hot_msgs').select('*').order('created_at',{ascending:true}).limit(300);if(error)return;const sig=JSON.stringify((data||[]).map(m=>[m.id,m.burn]))+[...hiddenHot].length;const same=sig===hotSig&&$('hotWrap').children.length;hotSig=sig;hotMsgs=data||[];if(same)return;const now=Date.now();for(const m of hotMsgs){if(m.burn>0&&now-new Date(m.created_at).getTime()>m.burn*1000){sb.from('hot_msgs').delete().eq('id',m.id);if(m.media_path)sb.storage.from('media').remove([m.media_path])}}renderHot()}
 function renderHot(){const w=$('hotWrap');w.innerHTML='';const box=w.parentElement;const near=box.scrollHeight-box.scrollTop-box.clientHeight<200;if(!hotMsgs.length){w.innerHTML='<div class="empty">Su espacio privado. Lo que escriban aquí es solo de ustedes. 🔥</div>'}for(const m of hotMsgs){const now=Date.now();if(hiddenHot.has(m.id))continue;if(m.burn>0&&now-new Date(m.created_at).getTime()>m.burn*1000)continue;const mine=m.sender===me;const b=document.createElement('div');b.className='m'+(mine?' me':'');b.style.maxWidth='min(82%,480px)';if(m.kind==='image'||m.kind==='video'){const isV=m.kind==='video';if(m.burn===-1&&!mine){const ph=document.createElement('div');ph.className='ph';ph.style.display='grid';ph.style.placeItems='center';ph.textContent=isV?'👁 Toca para ver el video una vez':'👁 Toca para ver una vez';ph.onclick=()=>{ph.onclick=null;ph.textContent='Abriendo…';mediaUrl(m.media_path).then(u=>{if(isV)showBig(u,true,()=>burnNow(m));else{showBig(u,false);burnNow(m)}}).catch(()=>ph.textContent='No disponible')};b.appendChild(ph)}else{const ph=document.createElement('div');ph.className='ph';b.appendChild(ph);mediaUrl(m.media_path).then(u=>{let el;if(isV){el=document.createElement('video');el.controls=true;el.playsInline=true;el.preload='metadata'}else{el=document.createElement('img');el.className='att';el.decoding='async';el.onclick=()=>showBig(u,false)}el.src=u;ph.replaceWith(el)}).catch(()=>ph.textContent='No disponible')}}
     if(m.kind==='voice'&&m.media_path)b.appendChild(voiceEl(m));
     if(m.body){if(m.burn===-1&&!mine){const sp=document.createElement('span');sp.textContent='👁 Toca para leer una vez';sp.style.fontStyle='italic';b.appendChild(sp);b.onclick=()=>{b.textContent=m.body;burnNow(m)}}else b.appendChild(document.createTextNode(m.body))}
