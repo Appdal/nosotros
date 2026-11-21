@@ -974,7 +974,7 @@ async function makePC(){const pc=new RTCPeerConnection({iceServers:await iceServ
   pc.onconnectionstatechange=()=>{if(!call)return;const st=pc.connectionState;if(st==='connected'&&!call.t0){call.t0=Date.now();stopRing();cState('live','00:00');call.timer=setInterval(()=>{if(call&&call.t0)$('cStatus').textContent=mmss((Date.now()-call.t0)/1000)},1000)}
     else if(st==='failed'){endCall('No se pudo conectar. Prueben con wifi.',true)}
     else if(st==='disconnected'){$('cStatus').textContent='Reconectando…'}};
-  for(const t of call.stream.getTracks())pc.addTrack(t,call.stream);return pc}
+  for(const t of call.stream.getTracks())pc.addTrack(t.kind==='video'&&call.dz?call.dz.out:t,call.stream);return pc}
 async function flushIce(){if(!call||!call.pc||!call.pc.remoteDescription)return;for(const c of call.iceQ.splice(0))try{await call.pc.addIceCandidate(c)}catch(e){}}
 /* --- quien llama --- */
 async function startCall(video){if(call){flash('Ya hay una llamada en curso');return}if(!other){flash('Tu pareja todavía no tiene cuenta');return}unlock();
@@ -1005,12 +1005,12 @@ $('cAcc').onclick=async()=>{if(!call||call.role!=='in')return;unlock();stopRing(
 $('cRej').onclick=()=>{if(!call)return;sig('reject');endCall('',false)};
 $('cEnd').onclick=()=>{if(!call)return;sig('hangup');endCall(call.t0?'Llamada terminada':'Llamada cancelada',call.role==='out',call.t0?null:'cancelada')};
 $('cMute').onclick=()=>{if(!call||!call.stream)return;const t=call.stream.getAudioTracks()[0];if(!t)return;t.enabled=!t.enabled;$('cMute').classList.toggle('off',!t.enabled);$('cMute').textContent=t.enabled?'🎙️':'🔇'};
-$('cCam').onclick=()=>{if(!call||!call.stream)return;const t=call.stream.getVideoTracks()[0];if(!t)return;t.enabled=!t.enabled;$('cCam').classList.toggle('off',!t.enabled)};
-$('cFlip').onclick=async()=>{if(!call||!call.stream||!call.video)return;const facing=call.facing==='user'?'environment':'user';try{const ns=await navigator.mediaDevices.getUserMedia({video:{facingMode:facing}});const nt=ns.getVideoTracks()[0];const old=call.stream.getVideoTracks()[0];const snd=call.pc&&call.pc.getSenders().find(s=>s.track&&s.track.kind==='video');if(snd)await snd.replaceTrack(nt);if(old){call.stream.removeTrack(old);old.stop()}call.stream.addTrack(nt);call.facing=facing;$('lv').srcObject=call.stream;$('lv').classList.toggle('back',facing!=='user')}catch(e){flash('No se pudo cambiar de cámara')}};
+$('cCam').onclick=()=>{if(!call||!call.stream)return;const t=call.stream.getVideoTracks()[0];if(!t)return;t.enabled=!t.enabled;if(call.dz)call.dz.out.enabled=t.enabled;$('cCam').classList.toggle('off',!t.enabled)};
+$('cFlip').onclick=async()=>{if(!call||!call.stream||!call.video)return;const facing=call.facing==='user'?'environment':'user';try{const ns=await navigator.mediaDevices.getUserMedia({video:{facingMode:facing}});const nt=ns.getVideoTracks()[0];const old=call.stream.getVideoTracks()[0];const snd=call.pc&&call.pc.getSenders().find(s=>s.track&&s.track.kind==='video');if(call.dz){call.dz.v.srcObject=new MediaStream([nt]);call.dz.v.play().catch(()=>{})}else if(snd)await snd.replaceTrack(nt);if(old){call.stream.removeTrack(old);old.stop()}call.stream.addTrack(nt);call.facing=facing;call.camZ=1;call.camX=call.camY=0;$('lv').srcObject=call.dz?new MediaStream([call.dz.out]):call.stream;$('lv').classList.toggle('back',facing!=='user')}catch(e){flash('No se pudo cambiar de cámara')}};
 /* --- terminar --- */
-async function endCall(text,logIt,outcome){const c=call;if(!c)return;call=null;clearInterval(c.pushIv);clearInterval(ringIv);clearTimeout(c.noAns);clearInterval(c.watch);clearInterval(c.timer);stopRing();
+async function endCall(text,logIt,outcome){const c=call;if(!c)return;call=null;if(c.dz){clearInterval(c.dz.timer);try{c.dz.out.stop()}catch(e){}}clearInterval(c.pushIv);clearInterval(ringIv);clearTimeout(c.noAns);clearInterval(c.watch);clearInterval(c.timer);stopRing();
   try{c.pc&&c.pc.close()}catch(e){}try{c.stream&&c.stream.getTracks().forEach(t=>t.stop())}catch(e){}
-  cui.classList.remove('mini');zReset();$('rv').srcObject=null;$('lv').srcObject=null;if(text){cState(null,text);setTimeout(()=>{if(!call)cui.classList.remove('on')},1400)}else cui.classList.remove('on');
+  cui.classList.remove('mini');vzReset();$('rv').srcObject=null;$('lv').srcObject=null;if(text){cState(null,text);setTimeout(()=>{if(!call)cui.classList.remove('on')},1400)}else cui.classList.remove('on');
   if(c.role==='out'&&c.msgId&&logIt!==false){const base=c.video?'🎥 Videollamada':'📞 Llamada';const body=c.t0?base+' · '+mmss((Date.now()-c.t0)/1000):base+' '+(outcome||'no contestada');try{await sb.from('messages').update({body}).eq('id',c.msgId);if(!c.t0&&!(other&&online[other]))sb.functions.invoke('notify',{body:{message_id:c.msgId}}).catch(()=>{})}catch(e){}if(byId[c.msgId]){byId[c.msgId].body=body;render()}}}
 $('callA').onclick=()=>startCall(false);$('callV').onclick=()=>startCall(true);
 addEventListener('pagehide',()=>{if(call){sig('hangup');}});
@@ -1042,27 +1042,47 @@ function hideNotesNow(){let ch=false;for(const m of msgs)if(m.kind==='note'&&m.s
 $('cMin').onclick=ev=>{ev.stopPropagation();cui.classList.add('mini')};
 cui.addEventListener('click',()=>{if(cui.classList.contains('mini'))cui.classList.remove('mini')});
 
-/* ---------- ZOOM CON LOS DEDOS Y VENTANITA MOVIBLE ----------
-   · Pellizcar el video grande: acerca la imagen de tu pareja (1× a 4×); con un dedo la mueves; doble toque vuelve a 1×.
-   · Arrastrar tu ventanita: la mueves a cualquier lugar.  · Pellizcar tu ventanita: zoom de tu propia cámara (si el celular lo permite). */
-const zv={z:1,x:0,y:0,ptrs:new Map(),pinch:0,lastTap:0};let zbT=null;
-function zBadge(t){const b=$('zBadge');b.textContent=t;b.classList.add('on');clearTimeout(zbT);zbT=setTimeout(()=>b.classList.remove('on'),900)}
-function zApply(){const W=cui.clientWidth,H=cui.clientHeight,mx=(zv.z-1)*W/2,my=(zv.z-1)*H/2;zv.x=Math.max(-mx,Math.min(mx,zv.x));zv.y=Math.max(-my,Math.min(my,zv.y));$('rv').style.transform=zv.z>1.01?'translate('+zv.x+'px,'+zv.y+'px) scale('+zv.z+')':''}
-function zReset(){zv.z=1;zv.x=zv.y=0;zv.ptrs.clear();zv.pinch=0;zApply()}
-cui.addEventListener('pointerdown',e=>{if(!call||cui.classList.contains('mini')||cui.classList.contains('audio')||e.target.closest('button,#lv'))return;
-  zv.ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});zv.pinch=0;if(zv.ptrs.size===1){const now=Date.now();if(now-zv.lastTap<300){zReset();zBadge('1×')}zv.lastTap=now}});
-cui.addEventListener('pointermove',e=>{if(!zv.ptrs.has(e.pointerId))return;const pv=zv.ptrs.get(e.pointerId);zv.ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
-  if(zv.ptrs.size===1&&zv.z>1){zv.x+=e.clientX-pv.x;zv.y+=e.clientY-pv.y;zApply()}
-  else if(zv.ptrs.size===2){const [a,b]=[...zv.ptrs.values()],d=Math.hypot(a.x-b.x,a.y-b.y);if(zv.pinch){zv.z=Math.max(1,Math.min(4,zv.z*d/zv.pinch));zApply();zBadge(zv.z.toFixed(1)+'×')}zv.pinch=d}});
-const zUp=e=>{zv.ptrs.delete(e.pointerId);zv.pinch=0};cui.addEventListener('pointerup',zUp);cui.addEventListener('pointercancel',zUp);
-/* ventanita propia */
-const lv=$('lv'),lvs={ptrs:new Map(),pinch:0,moved:false,camZ:null};
+/* ---------- ZOOM DE TU CÁMARA CON LOS DEDOS (lo ve tu pareja) Y VENTANITA MOVIBLE ----------
+   · Pellizcar la pantalla o tu ventanita: acerca TU cámara y tu pareja ve lo acercado (1× a 5×).
+   · Con zoom, un dedo mueve la zona que muestras · doble toque vuelve a 1×.
+   · Si la cámara tiene zoom propio (muchos Android) se usa ese; si no (iPhone), se recorta y amplía la imagen antes de enviarla.
+   · Tu ventanita se puede arrastrar a cualquier lugar. */
+let zbT=null;
+function zBadge(t){const b=$('zBadge');b.textContent=t;b.classList.add('on');clearTimeout(zbT);zbT=setTimeout(()=>b.classList.remove('on'),1100)}
+function camTrack(){return call&&call.video&&call.stream&&call.stream.getVideoTracks()[0]}
+function startDigitalZoom(){if(call.dz)return true;const raw=camTrack();if(!raw||!HTMLCanvasElement.prototype.captureStream)return false;
+  const v=document.createElement('video');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.srcObject=new MediaStream([raw]);v.play().catch(()=>{});
+  const c=document.createElement('canvas');const st=raw.getSettings();c.width=st.width||640;c.height=st.height||480;const ctx=c.getContext('2d');
+  const dz={v,c,ctx,out:null,timer:null};call.dz=dz;const me_=call;
+  dz.timer=setInterval(()=>{if(call!==me_)return;const vw=v.videoWidth,vh=v.videoHeight;if(!vw||!vh)return;const k=Math.min(1,960/Math.max(vw,vh)),W=Math.round(vw*k),H=Math.round(vh*k);
+    if(c.width!==W||c.height!==H){c.width=W;c.height=H}const z=me_.camZ||1,sw=vw/z,sh=vh/z,mx=(vw-sw)/2,my=(vh-sh)/2;
+    ctx.drawImage(v,mx,my,sw,sh,0,0,W,H)},1000/30);
+  dz.out=c.captureStream(30).getVideoTracks()[0];dz.out.enabled=raw.enabled;
+  const snd=call.pc&&call.pc.getSenders().find(x=>x.track&&x.track.kind==='video');if(snd)snd.replaceTrack(dz.out).catch(()=>{});
+  $('lv').srcObject=new MediaStream([dz.out]);return true}
+function camZoomTo(z){const t=camTrack();if(!t)return;z=Math.max(1,Math.min(5,z));call.camZ=z;
+  const cap=t.getCapabilities?t.getCapabilities():{};
+  if(cap.zoom&&!call.dz){const hz=cap.zoom.min+(Math.min(cap.zoom.max,cap.zoom.min*5)-cap.zoom.min)*(z-1)/4;t.applyConstraints({advanced:[{zoom:hz}]}).catch(()=>{});call.hw=true}
+  else if(!startDigitalZoom()){zBadge('Este celular no permite zoom');return}
+  zBadge(z<1.05?'Zoom 1× (normal)':'Tu cámara '+z.toFixed(1)+'× · tu pareja lo ve')}
+/* pantalla grande: zoom SOLO para ver tú mejor el video de tu pareja (no lo ve nadie más) */
+const vz={z:1,x:0,y:0,ptrs:new Map(),pinch:0,lastTap:0};
+function vzApply(){const W=cui.clientWidth,H=cui.clientHeight,mx=(vz.z-1)*W/2,my=(vz.z-1)*H/2;vz.x=Math.max(-mx,Math.min(mx,vz.x));vz.y=Math.max(-my,Math.min(my,vz.y));$('rv').style.transform=vz.z>1.01?'translate('+vz.x+'px,'+vz.y+'px) scale('+vz.z+')':''}
+function vzReset(){vz.z=1;vz.x=vz.y=0;vz.ptrs.clear();vz.pinch=0;vzApply()}
+cui.addEventListener('pointerdown',e=>{if(!call||!call.video||cui.classList.contains('mini')||e.target.closest('button,#lv'))return;vz.ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});vz.pinch=0;
+  if(vz.ptrs.size===1){const now=Date.now();if(now-vz.lastTap<300&&vz.z>1){vzReset();zBadge('Vista normal')}vz.lastTap=now}});
+cui.addEventListener('pointermove',e=>{if(!vz.ptrs.has(e.pointerId))return;const pv=vz.ptrs.get(e.pointerId);vz.ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(vz.ptrs.size===1&&vz.z>1){vz.x+=e.clientX-pv.x;vz.y+=e.clientY-pv.y;vzApply()}
+  else if(vz.ptrs.size===2){const [a,b]=[...vz.ptrs.values()],d=Math.hypot(a.x-b.x,a.y-b.y);if(vz.pinch){vz.z=Math.max(1,Math.min(4,vz.z*d/vz.pinch));vzApply();zBadge('Tu vista '+vz.z.toFixed(1)+'× · solo tú')}vz.pinch=d}});
+const vzUp=e=>{vz.ptrs.delete(e.pointerId);vz.pinch=0};cui.addEventListener('pointerup',vzUp);cui.addEventListener('pointercancel',vzUp);
+/* tu ventanita: un dedo la mueve · dos dedos hacen zoom de TU cámara (tu pareja lo ve) · doble toque vuelve a 1× */
+const lv=$('lv'),lvs={ptrs:new Map(),pinch:0,lastTap:0};
 function lvClamp(x,y){const r=lv.getBoundingClientRect(),W=cui.clientWidth,H=cui.clientHeight,c=cui.getBoundingClientRect(),ba=$('cAct'),bt=ba.classList.contains('hidden')?H:ba.getBoundingClientRect().top-c.top+12;return [Math.max(6,Math.min(W-r.width-6,x)),Math.max(6,Math.min(Math.min(H,bt)-r.height-6,y))]}
 lv.addEventListener('pointerdown',e=>{if(cui.classList.contains('mini'))return;e.stopPropagation();try{lv.setPointerCapture(e.pointerId)}catch(_){}lvs.ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});lvs.pinch=0;
-  if(lvs.ptrs.size===2){const t=call&&call.stream&&call.stream.getVideoTracks()[0];const cap=t&&t.getCapabilities&&t.getCapabilities();lvs.camZ=cap&&cap.zoom?{t,min:cap.zoom.min,max:cap.zoom.max,v:(t.getSettings().zoom||cap.zoom.min)}:null;if(!lvs.camZ)zBadge('Tu cámara no permite zoom')}});
+  if(lvs.ptrs.size===1){const now=Date.now();if(now-lvs.lastTap<300&&call&&(call.camZ||1)>1)camZoomTo(1);lvs.lastTap=now}});
 lv.addEventListener('pointermove',e=>{if(!lvs.ptrs.has(e.pointerId))return;e.stopPropagation();const pv=lvs.ptrs.get(e.pointerId);lvs.ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
-  if(lvs.ptrs.size===1){const r=lv.getBoundingClientRect(),c=cui.getBoundingClientRect();const [x,y]=lvClamp(r.left-c.left+e.clientX-pv.x,r.top-c.top+e.clientY-pv.y);lv.style.left=x+'px';lv.style.top=y+'px';lv.style.right='auto'}
-  else if(lvs.ptrs.size===2&&lvs.camZ){const [a,b]=[...lvs.ptrs.values()],d=Math.hypot(a.x-b.x,a.y-b.y);if(lvs.pinch){const z=lvs.camZ;z.v=Math.max(z.min,Math.min(z.max,z.v*d/lvs.pinch));z.t.applyConstraints({advanced:[{zoom:z.v}]}).catch(()=>{});zBadge('Tu cámara '+z.v.toFixed(1)+'×')}lvs.pinch=d}});
+  if(lvs.ptrs.size===2){const [a,b]=[...lvs.ptrs.values()],d=Math.hypot(a.x-b.x,a.y-b.y);if(lvs.pinch&&call)camZoomTo((call.camZ||1)*d/lvs.pinch);lvs.pinch=d;return}
+  if(lvs.ptrs.size===1){const r=lv.getBoundingClientRect(),c=cui.getBoundingClientRect();const [x,y]=lvClamp(r.left-c.left+e.clientX-pv.x,r.top-c.top+e.clientY-pv.y);lv.style.left=x+'px';lv.style.top=y+'px';lv.style.right='auto'}});
 const lvUp=e=>{lvs.ptrs.delete(e.pointerId);lvs.pinch=0};lv.addEventListener('pointerup',lvUp);lv.addEventListener('pointercancel',lvUp);
 addEventListener('resize',()=>{if(lv.style.left){const r=lv.getBoundingClientRect(),c=cui.getBoundingClientRect();const [x,y]=lvClamp(r.left-c.left,r.top-c.top);lv.style.left=x+'px';lv.style.top=y+'px'}});
 
