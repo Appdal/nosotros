@@ -959,6 +959,8 @@ panel.onclick=e=>{if(e.target===panel)panel.classList.remove('on')};
 function closeOv(o){o.classList.remove('on');if(o.id==='ovBig')bigClosed();if(o.id==='ovHotMedia')hotPending=null;if(o.id==='ovCrop')cropEnd();if(o.id==='ovStkEd')seClose()}
 document.querySelectorAll('.ovx').forEach(b=>b.onclick=e=>closeOv(e.target.closest('.ov')));
 document.querySelectorAll('.ov').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)closeOv(o)}));
+/* foto/video en grande: tocar en cualquier parte fuera de la foto o del video la cierra */
+$('ovBig').addEventListener('click',e=>{const o=$('ovBig');if(e.target!==o&&o.classList.contains('on')&&!e.target.closest('img,video,button'))closeOv(o)});
 /* visor grande: foto o video; onClose se ejecuta al cerrarlo */
 let bigOnClose=null;
 let bigPath=null;
