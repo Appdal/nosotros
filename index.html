@@ -44,11 +44,11 @@ img.ph2{object-fit:cover}
 #lerr{color:#c0392b;min-height:20px;text-align:center;font-size:14px}
 /* header */
 header{display:flex;align-items:center;gap:10px;padding:calc(8px + env(safe-area-inset-top)) 12px 8px;background:var(--bar);border-bottom:1px solid var(--line)}
-.av{position:relative;width:44px;height:44px;border-radius:50%;background:var(--mine);color:#fff;display:grid;place-items:center;font:700 22px Caveat,cursive;flex:none;overflow:hidden}
+.av{position:relative;width:44px;height:44px;border-radius:50%;background:var(--mine);color:#fff;display:grid;place-items:center;font:600 18px Figtree,system-ui,sans-serif;flex:none;overflow:hidden}
 .av img{width:100%;height:100%;object-fit:cover}
 .av.on::after{content:"";position:absolute;right:0;bottom:0;width:13px;height:13px;border-radius:50%;background:#2fbf71;border:2px solid var(--bar)}
 .hd{flex:1;min-width:0}
-h2{margin:0;font:700 28px/1.05 Caveat,cursive;letter-spacing:1px;-webkit-text-stroke:.4px currentColor;padding-right:2px;color:var(--mine);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+h2{margin:0;font:600 17px/1.25 Figtree,system-ui,sans-serif;letter-spacing:.1px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sub{font-size:13px;color:var(--soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.sub.on{color:#1f9d5c;font-weight:600}.sub.typ{color:var(--mine);font-style:italic;font-weight:600}
 .btn{flex:none;width:42px;height:44px;border-radius:50%;border:0;display:grid;place-items:center;background:transparent;color:var(--mine)}
 .btn svg{width:22px;height:22px}.btn:disabled{opacity:.35}
@@ -165,6 +165,7 @@ input[type=file]{display:none}
     <button class="pill" id="lbtn">Entrar</button>
   </form>
   <div id="lerr"></div>
+  <button class="link" id="lforgot">¿Olvidaste tu contraseña?</button>
   <button class="link" id="lswap">¿Primera vez? Crear mi cuenta</button>
 </section>
 
@@ -271,6 +272,9 @@ input[type=file]{display:none}
   <div class="seg"><button data-th="auto" id="thAuto">Auto</button><button data-th="light">Claro</button><button data-th="dark">Oscuro</button></div>
   <div class="rowline" id="colors" style="gap:10px;margin-top:4px"></div>
 
+  <h4>Contraseña 🔑</h4>
+  <button class="pill sm alt" id="pPass">Cambiar mi contraseña</button>
+
   <h4>&nbsp;</h4>
   <button class="pill alt" id="pOut">Cerrar sesión</button>
   <button class="pill alt" id="pClose">Listo</button>
@@ -285,6 +289,12 @@ input[type=file]{display:none}
 <div class="ov" id="ovLove"><div class="sheet"><h3>Pensando en ti 💞</h3><p>Elige un mensaje o escribe el tuyo. Le llega como notificación.</p><div id="loveList"></div><div class="rowline"><input id="lvIn" placeholder="Tu mensaje de amor…"><button class="pill sm" id="lvSend">Enviar</button></div><button class="pill alt ovx">Cerrar</button></div></div>
 <div class="ov" id="ovPin"><div class="sheet"><h3 id="pinTitle">Zona privada 🔒</h3><p id="pinMsg">Escribe el código de 4 dígitos.</p><input id="pinInput" type="password" inputmode="numeric" maxlength="4" placeholder="••••" style="text-align:center;letter-spacing:8px;font-size:22px"><div id="pinErr" style="color:#c0392b;font-size:14px;min-height:18px"></div><button class="pill" id="pinGo">Entrar</button><button class="pill alt ovx">Cancelar</button></div></div>
 <div class="ov" id="ovBig"><div class="sheet" style="background:transparent;align-items:center"><img id="bigImg" style="max-width:100%;max-height:80dvh;border-radius:12px"><video id="bigVid" class="hidden" controls playsinline style="max-width:100%;max-height:80dvh;border-radius:12px;background:#000"></video><button class="pill alt ovx">Cerrar</button></div></div>
+<div class="ov" id="ovPass"><div class="sheet"><h3>Nueva contraseña</h3><p id="npMsg">Escribe tu nueva contraseña (mínimo 6 caracteres).</p>
+  <input id="np1" type="password" autocomplete="new-password" placeholder="Nueva contraseña" minlength="6">
+  <input id="np2" type="password" autocomplete="new-password" placeholder="Repite la contraseña" minlength="6">
+  <label style="display:flex;gap:8px;align-items:center;font-size:14px;color:var(--soft)"><input type="checkbox" id="npShow" style="width:auto"> Mostrar contraseña</label>
+  <div id="npErr" style="color:#c0392b;font-size:14px;min-height:18px"></div>
+  <button class="pill" id="npSave">Guardar contraseña</button><button class="pill alt ovx">Cancelar</button></div></div>
 <div class="ov" id="ovCam"><div class="sheet"><h3>Cámara</h3><button class="pill" id="camPhoto">📷 Tomar foto</button><button class="pill" id="camVideo">🎥 Grabar video</button><button class="pill alt hidden" id="camGal">🖼️ Elegir de la galería</button><button class="pill alt ovx">Cancelar</button></div></div>
 <div class="ov" id="ovCrop"><div class="sheet" style="align-items:center"><h3>Recorta tu foto</h3><p style="text-align:center">Arrastra para moverla · pellizca o usa la barra para acercar</p>
   <div id="cropStage" style="position:relative;width:min(78vw,300px);aspect-ratio:1;touch-action:none;border-radius:14px;overflow:hidden;background:#000;cursor:grab"><canvas id="cropCv" style="width:100%;height:100%;display:block"></canvas><div style="position:absolute;inset:0;border-radius:50%;box-shadow:0 0 0 999px rgba(0,0,0,.55);border:2px solid rgba(255,255,255,.9);pointer-events:none"></div></div>
@@ -294,7 +304,7 @@ input[type=file]{display:none}
 <div class="ov" id="ovProfile"><div class="sheet" style="align-items:stretch">
   <div style="text-align:center">
     <div class="av" id="profAv" style="width:96px;height:96px;margin:0 auto;font-size:40px">♥</div>
-    <h3 id="profName" style="margin:10px 0 2px;text-align:center;font:700 30px/1.1 Caveat,cursive;color:var(--mine);letter-spacing:1px;-webkit-text-stroke:.4px currentColor">Nosotros</h3>
+    <h3 id="profName" style="margin:10px 0 2px;text-align:center;font:600 20px/1.3 Figtree,system-ui,sans-serif;color:var(--ink)">Nosotros</h3>
     <p id="profDays" style="text-align:center"></p>
   </div>
   <div class="seg">
@@ -371,7 +381,23 @@ $('lform').onsubmit=async e=>{e.preventDefault();const email=$('lemail').value.t
     else{ const {error}=await sb.auth.signInWithPassword({email,password}); if(error)throw error; }
   }catch(err){$('lerr').style.color='';$('lerr').textContent=/Invalid login/i.test(err.message)?'Correo o contraseña incorrectos':/confirm/i.test(err.message)?'Primero confirma tu correo (revisa spam)':err.message}
   finally{$('lbtn').disabled=false}};
-sb.auth.onAuthStateChange((ev,s)=>{setTimeout(()=>{if(s&&!me)start(s.user);if(ev==='SIGNED_OUT'&&me)location.reload()},0)});
+/* ---------- contraseña: recuperar (olvidé) y cambiar ---------- */
+let recovering=/type=recovery/.test(location.hash);
+$('lforgot').onclick=async()=>{const email=$('lemail').value.trim();const le=$('lerr');le.style.color='';
+  if(!/^\S+@\S+\.\S+$/.test(email)){le.textContent='Escribe tu correo arriba y vuelve a tocar «¿Olvidaste tu contraseña?»';$('lemail').focus();return}
+  $('lforgot').disabled=true;le.textContent='Enviando…';
+  try{const {error}=await sb.auth.resetPasswordForEmail(email);if(error)throw error;le.style.color='var(--ink)';le.textContent='Listo: te enviamos un correo a '+email+'. Ábrelo y toca el enlace; aquí podrás poner tu nueva contraseña. (Revisa también spam.)'}
+  catch(err){le.textContent=/rate|seconds|too many/i.test(err.message)?'Espera un momento antes de pedir otro correo.':'No se pudo enviar el correo: '+err.message}
+  finally{setTimeout(()=>$('lforgot').disabled=false,30000)}};
+function openPass(fromEmail){$('np1').value='';$('np2').value='';$('npErr').textContent='';$('npMsg').textContent=fromEmail?'Entraste con el enlace del correo. Escribe tu nueva contraseña (mínimo 6 caracteres).':'Escribe tu nueva contraseña (mínimo 6 caracteres).';$('ovPass').classList.add('on');setTimeout(()=>$('np1').focus(),150)}
+$('npShow').onchange=e=>{$('np1').type=$('np2').type=e.target.checked?'text':'password'};
+$('npSave').onclick=async()=>{const a=$('np1').value,b=$('np2').value,er=$('npErr');er.textContent='';
+  if(a.length<6){er.textContent='Debe tener al menos 6 caracteres.';return}if(a!==b){er.textContent='Las dos contraseñas no coinciden.';return}
+  $('npSave').disabled=true;try{const {error}=await sb.auth.updateUser({password:a});if(error)throw error;$('ovPass').classList.remove('on');recovering=false;flash('✓ Contraseña cambiada',4000)}
+  catch(err){er.textContent=/different|same/i.test(err.message)?'Debe ser distinta a la contraseña anterior.':/weak|short/i.test(err.message)?'Es muy débil, prueba con una más larga.':/reauth|recent/i.test(err.message)?'Por seguridad, cierra sesión y usa «¿Olvidaste tu contraseña?».':'No se pudo cambiar: '+err.message}
+  finally{$('npSave').disabled=false}};
+$('pPass').onclick=()=>{panel.classList.remove('on');openPass(false)};
+sb.auth.onAuthStateChange((ev,s)=>{setTimeout(()=>{if(ev==='PASSWORD_RECOVERY')recovering=true;if(s&&!me)start(s.user);if(recovering&&s){recovering=false;try{history.replaceState(null,'',location.pathname)}catch(e){}openPass(true)}if(ev==='SIGNED_OUT'&&me)location.reload()},0)});
 
 /* ---------- tema ---------- */
 function applyTheme(){
@@ -756,6 +782,7 @@ function addFant(v){const a={...(couple.fantasies||{})};a[me]=[...((couple.fanta
 /* ---------- arranque ---------- */
 const {data:{session}}=await sb.auth.getSession();
 if(session&&!me)start(session.user);
+if(session&&recovering){recovering=false;try{history.replaceState(null,'',location.pathname)}catch(e){}openPass(true)}
 </script>
 </body>
 </html>
