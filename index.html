@@ -330,9 +330,14 @@ input[type=file]{display:none}
 #app #txt{border:0;box-shadow:var(--wa-shadow);border-radius:24px}
 #app>footer :is(#cam,#gal,#stkBtn){color:light-dark(#54656f,#8696a0)}
 #dAdd{touch-action:manipulation}
-#locationPanel,#locationConsent{border:1px solid var(--line);color:var(--ink);width:min(440px,calc(100% - 24px));margin:auto}
-#locationPanel:not([open]),#locationConsent:not([open]){display:none}
-#locationPanel::backdrop,#locationConsent::backdrop{background:rgba(20,8,12,.55)}
+#locationPanel,#locationConsent,#editMessage{border:1px solid var(--line);color:var(--ink);width:min(440px,calc(100% - 24px));margin:auto}
+#locationPanel:not([open]),#locationConsent:not([open]),#editMessage:not([open]){display:none}
+#locationPanel::backdrop,#locationConsent::backdrop,#editMessage::backdrop{background:rgba(20,8,12,.55)}
+#editMessage form{display:flex;flex-direction:column;gap:10px}
+#editMessage textarea{min-height:100px;max-height:32dvh}
+.album-filters{display:flex;gap:8px;align-items:end;flex-wrap:wrap}
+.album-filters label{flex:1;display:grid;gap:4px;font-size:13px}
+.album-filters :is(select,input){font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px}
 #locationPlaces a{color:var(--ink)}
 .media-open{position:relative;display:block;width:100%;padding:0;border:0;background:none;color:inherit;text-align:left}
 .media-play{pointer-events:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);border-radius:50%;width:44px;height:44px;display:grid;place-items:center;background:#000a;color:#fff}
@@ -526,7 +531,7 @@ input[type=file]{display:none}
 </div></div>
 
 <!-- OVERLAYS simples -->
-<div class="ov" id="ovAlbum"><div class="sheet"><h3>Fotos y videos</h3><div id="albumGrid"></div><button class="pill alt ovx">Cerrar</button></div></div>
+<div class="ov" id="ovAlbum"><div class="sheet"><h3>Fotos y videos</h3><div class="album-filters"><label>Tipo<select id="albumKind"><option value="">Todos</option><option value="image">Fotos</option><option value="video">Videos</option></select></label><label>Fecha<input id="albumDate" type="date"></label><button class="pill sm alt hidden" id="albumClearDate">Ver todas las fechas</button></div><div id="albumGrid"></div><button class="pill alt ovx">Cerrar</button></div></div>
 <div class="ov" id="ovFav"><div class="sheet"><h3>Favoritos ⭐</h3><div id="favList"></div><button class="pill alt ovx">Cerrar</button></div></div>
 <div class="ov" id="ovReasons"><div class="sheet"><h3>Razones por las que te amo 💘</h3><div id="reasonsList"></div><div class="rowline"><input id="rzIn" placeholder="Escribe una razón…"><button class="pill sm" id="rzAdd">+</button></div><button class="pill alt ovx">Cerrar</button></div></div>
 <div class="ov" id="ovGoals"><div class="sheet"><h3>Metas de pareja 🎯</h3><div id="goalsList"></div><div class="rowline"><input id="glIn" placeholder="Ej: Viajar a la playa"><button class="pill sm" id="glAdd">+</button></div><button class="pill alt ovx">Cerrar</button></div></div>
@@ -619,7 +624,7 @@ input[type=file]{display:none}
     <div class="gr"><b>Privacidad</b><p>Compartiendo ubicación · Historial de 24 horas</p><p id="ownLocationStatus" role="status"></p></div>
     <button class="pill alt sm" id="locationStop">Dejar de compartir</button>
   </div>
-  <button class="pill alt hidden" id="locationCheck">Comprobar y compartir ahora</button>
+  <button class="pill hidden" id="locationCheck">Compartir mi ubicación ahora</button>
   <h4>Últimos lugares</h4>
   <div id="locationPlaces" class="listit" style="display:block;min-height:36px"></div>
   <form method="dialog"><button class="pill alt">Cerrar</button></form>
@@ -630,6 +635,14 @@ input[type=file]{display:none}
     <button id="locationYes">Sí</button>
     <button id="locationNo">No</button>
   </div>
+</dialog>
+<dialog id="editMessage" class="sheet" aria-labelledby="editMessageTitle">
+  <h3 id="editMessageTitle">Editar mensaje</h3>
+  <form id="editMessageForm">
+    <textarea id="editMessageText" aria-label="Texto del mensaje" maxlength="4000" required></textarea>
+    <p id="editMessageStatus" role="status"></p>
+    <div class="seg"><button class="pill alt" type="button" id="editMessageCancel">Cancelar</button><button class="pill" id="editMessageSave">Guardar</button></div>
+  </form>
 </dialog>
 <script type="module">
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
@@ -788,6 +801,9 @@ async function start(u){
   if(me)return;me=u.id;
   myName=u.user_metadata?.name||u.email.split('@')[0];
   $('login').classList.add('hidden');$('app').classList.remove('hidden');
+  restoreDraft(txt);
+  restoreDraft($('htxt'));
+  grow();hotGrow();
   restoreChat();
   status();
   const retryStart=()=>finishChatStart(u).catch(()=>{});
@@ -957,7 +973,7 @@ function imgInto(b,m){const ph=document.createElement('div');ph.className='ph';i
    Ahora cada mensaje se guarda ya armado y solo se rehace el que cambió; el resto se queda tal cual. */
 const nodeCache=new Map();let usedKeys=new Set();
 function keyed(key,sig,build){usedKeys.add(key);const c=nodeCache.get(key);if(c&&c.sig===sig)return c.el;const el=build();nodeCache.set(key,{sig,el});return el}
-function msgSig(m){const r=m.reply_to?byId[m.reply_to]:null;return JSON.stringify([m.kind,m.body,m.media_path,m.width,m.height,m.duration,!!m.fav,m.reactions||null,m.sender===me,m.reply_to||null,r?[who(r.sender),snip(r)]:0])}
+function msgSig(m){const r=m.reply_to?byId[m.reply_to]:null;return JSON.stringify([m.kind,m.body,m.edited_at,m.media_path,m.width,m.height,m.duration,!!m.fav,m.reactions||null,m.sender===me,m.reply_to||null,r?[who(r.sender),snip(r)]:0])}
 function buildMsg(m){
   const id=m.id,cur=()=>byId[id]||m,mine=m.sender===me;
   const b=document.createElement('div');b.className='m'+(mine?' me':'');b.dataset.id=id;
@@ -966,7 +982,7 @@ function buildMsg(m){
   if(m.kind==='voice')b.appendChild(voiceEl(m));
   if(m.kind==='sticker'){b.classList.add('stkm');stickerInto(b,m.media_path)}
   if(m.body)b.appendChild(document.createTextNode(m.body));
-  const t=document.createElement('span');t.className='t';t.innerHTML=(m.fav?'<span class="star">★</span> ':'')+hm(m.created_at)+(mine?'<span class="tk">✓</span>':'');b.appendChild(t);
+  const t=document.createElement('span');t.className='t';t.innerHTML=(m.fav?'<span class="star">★</span> ':'')+(m.edited_at?'Editado · ':'')+hm(m.created_at)+(mine?'<span class="tk">✓</span>':'');b.appendChild(t);
   const rx=m.reactions||{};const emos=Object.values(rx).filter(Boolean);if(emos.length){const rr=document.createElement('div');rr.className='rx';const counts={};emos.forEach(e=>counts[e]=(counts[e]||0)+1);for(const [e,n] of Object.entries(counts)){const s=document.createElement('span');s.textContent=e+(n>1?' '+n:'');rr.appendChild(s)}b.appendChild(rr)}
   const acts=document.createElement('div');acts.className='acts';
   for(const e of ['❤️','😂','😮','😍','🔥']){const eb=document.createElement('button');eb.className='emo';eb.textContent=e;eb.onclick=ev=>{ev.stopPropagation();react(cur(),e)};acts.appendChild(eb)}
@@ -974,6 +990,10 @@ function buildMsg(m){
   {const br=document.createElement('i');br.className='br';acts.appendChild(br)}
   const fb=document.createElement('button');fb.className='tb';fb.textContent=m.fav?'★':'☆';fb.onclick=ev=>{ev.stopPropagation();toggleFav(cur())};acts.appendChild(fb);
   const rb=document.createElement('button');rb.className='tb';rb.textContent='Responder';rb.onclick=ev=>{ev.stopPropagation();startReply(cur())};acts.appendChild(rb);
+  if(mine&&m.kind==='text'){
+    const edit=document.createElement('button');edit.className='tb';edit.textContent='Editar';
+    edit.onclick=ev=>{ev.stopPropagation();openEditMessage(cur())};acts.appendChild(edit);
+  }
   if((m.kind==='image'||m.kind==='video')&&m.media_path){const sv=document.createElement('button');sv.className='tb';sv.textContent='⬇️ Guardar';sv.onclick=ev=>{ev.stopPropagation();selId=null;render();saveMedia(m.media_path,m.kind)};acts.appendChild(sv)}
   const x=document.createElement('button');x.className='tb';x.textContent='Borrar para mí';x.onclick=ev=>{ev.stopPropagation();hideForMe(id)};acts.appendChild(x);
   b.appendChild(acts);
@@ -1022,13 +1042,60 @@ async function toggleFav(m){m.fav=!m.fav;selId=null;render();try{await sb.from('
 async function post(row){if(!navigator.onLine)throw new Error('Sin conexión.');const rp=replying;const {data,error}=await sb.from('messages').insert({...row,reply_to:rp?rp.id:null}).select().single();if(error){flash('No se pudo enviar: '+error.message,5000);throw error}if(!byId[data.id]){msgs.push(data);byId[data.id]=data}if(replying===rp)stopReply();if(onlyHearts(row.body))hearts();render();sb.functions.invoke('notify',{body:{message_id:data.id}}).catch(()=>{});
   if(row.kind==='buzz'&&!(other&&online[other]))[3000,6000].forEach(t=>setTimeout(()=>{if(!(other&&online[other]))sb.functions.invoke('notify',{body:{message_id:data.id}}).catch(()=>{})},t));
   return data}
-function grow(){txt.style.height='auto';txt.style.height=Math.min(txt.scrollHeight,140)+'px';const has=!!txt.value.trim();$('send').classList.toggle('hidden',!has);$('mic').classList.toggle('hidden',has)}
+const draftKey=field=>'nosotros:borrador:'+me+':'+field.id;
+function saveDraft(field){
+  if(!me)return;
+  try{if(field.value)localStorage.setItem(draftKey(field),field.value);else localStorage.removeItem(draftKey(field))}catch(e){}
+}
+function restoreDraft(field){
+  try{field.value=localStorage.getItem(draftKey(field))||''}catch(e){}
+}
+function grow(){saveDraft(txt);txt.style.height='auto';txt.style.height=Math.min(txt.scrollHeight,140)+'px';const has=!!txt.value.trim();$('send').classList.toggle('hidden',!has);$('mic').classList.toggle('hidden',has)}
 let typT=null,typOn=false;
 function typing(v){if(!channel)return;clearTimeout(typT);if(v)typT=setTimeout(()=>typing(false),4000);if(v!==typOn){typOn=v;channel.track({active:true,typing:v}).catch(()=>{})}}
 txt.addEventListener('input',()=>{grow();typing(!!txt.value.trim())});
 txt.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing&&matchMedia('(pointer:fine)').matches){e.preventDefault();sendText()}});
 $('send').onclick=sendText;
-async function sendText(){const v=txt.value.trim();if(!v||!navigator.onLine)return;if(/^\/(borrar|vaciar|limpiar)\b/i.test(v)){txt.value='';grow();typing(false);openWipe();return}txt.value='';grow();typing(false);try{await post({kind:'text',body:v.slice(0,4000)})}catch(e){txt.value=v;grow()}txt.focus()}
+async function sendText(){
+  const original=txt.value,v=original.trim(),send=$('send');
+  if(!v||!navigator.onLine||send.disabled)return;
+  if(/^\/(borrar|vaciar|limpiar)\b/i.test(v)){txt.value='';grow();typing(false);openWipe();return}
+  send.disabled=true;
+  try{
+    await post({kind:'text',body:v.slice(0,4000)});
+    if(txt.value===original){txt.value='';grow();typing(false)}
+  }catch(e){}
+  finally{send.disabled=false;txt.focus()}
+}
+const editDialog=$('editMessage'),editText=$('editMessageText');
+let editingMessage=null;
+function openEditMessage(message){
+  editingMessage=message;
+  editText.value=message.body||'';
+  $('editMessageStatus').textContent='';
+  editDialog.showModal();editText.focus();
+}
+$('editMessageCancel').onclick=()=>editDialog.close();
+editDialog.addEventListener('close',()=>{editingMessage=null});
+$('editMessageForm').onsubmit=async event=>{
+  event.preventDefault();
+  const message=editingMessage,body=editText.value.trim(),save=$('editMessageSave');
+  const status=$('editMessageStatus');
+  if(!message||!body||save.disabled)return;
+  if(body===message.body){editDialog.close();return}
+  if(!navigator.onLine){status.textContent='Sin conexión. Vuelve a intentarlo cuando tengas internet.';return}
+  save.disabled=true;
+  try{
+    const {data,error}=await sb.rpc('edit_own_chat_message',{message_id:String(message.id),new_body:body});
+    if(error||!data)throw new Error('No se pudo guardar el cambio.');
+    if(byId[message.id]){
+      Object.assign(byId[message.id],data);
+      render();
+    }
+    if(editingMessage===message)editDialog.close();
+  }catch(e){if(editingMessage===message)status.textContent='No se pudo editar el mensaje. Inténtalo de nuevo.'}
+  finally{save.disabled=false}
+};
 $('buzz').onclick=async()=>{unlock();const b=$('buzz');b.disabled=true;setTimeout(()=>b.disabled=false,15000);shake();try{await post({kind:'buzz'});flash('¡Zumbido enviado!')}catch(e){}};
 
 /* ---------- fotos/videos ---------- */
@@ -1256,8 +1323,7 @@ function showBig(url,isVideo,onClose,path,series=null){
   $('ovBig').classList.add('on');
 }
 const chatMedia=()=>msgs.filter(item=>!hidden.has(item.id)&&item.media_path&&(item.kind==='image'||item.kind==='video'));
-function openChatMedia(m,url){
-  const items=chatMedia();
+function openChatMedia(m,url,items=chatMedia()){
   const index=items.findIndex(item=>item.id===m.id);
   showBig(url,m.kind==='video',null,m.media_path,index<0?null:{items,index,loading:false});
 }
@@ -1310,7 +1376,13 @@ async function saveMedia(path,kind){if(!path)return;show('Descargando…');try{c
   catch(e){show('');flash('No se pudo guardar: '+(e.message||e))}}
 $('bigSave').onclick=()=>{if(bigPath)saveMedia(bigPath,$('bigVid').classList.contains('hidden')?'image':'video')};
 function bigClosed(){bigSeries=null;const vd=$('bigVid');try{vd.pause()}catch(e){}vd.removeAttribute('src');vd.load();vd.classList.add('hidden');$('bigImg').removeAttribute('src');$('bigImg').classList.remove('hidden');const f=bigOnClose;bigOnClose=null;f&&f()}
-$('pOut').onclick=async()=>{clearTimeout(chatSaveTimer);try{localStorage.removeItem(chatCacheKey())}catch(e){}await sb.auth.signOut();location.reload()};
+$('pOut').onclick=async()=>{
+  clearTimeout(chatSaveTimer);
+  try{
+    for(const key of [chatCacheKey(),draftKey(txt),draftKey($('htxt'))])localStorage.removeItem(key);
+  }catch(e){}
+  await sb.auth.signOut();location.reload();
+};
 function buildColors(){const c=$('colors');c.innerHTML='';for(const [k,v] of Object.entries(PALETTES)){const s=document.createElement('button');s.className='swatch';s.dataset.c=k;s.title=v[2]||k;s.setAttribute('aria-label',v[2]||k);s.style.background='linear-gradient(135deg,'+v[0]+' 55%,'+v[1]+')';s.onclick=()=>{saveCouple({color:k});applyTheme()};c.appendChild(s)}}
 document.querySelectorAll('.seg [data-th]').forEach(b=>b.onclick=()=>{try{localStorage.setItem('tema',b.dataset.th)}catch(e){}applyTheme()});
 function fillPanel(){
@@ -1367,13 +1439,18 @@ $('dAdd').onclick=()=>{
 
 /* overlays simples */
 let albumObserver=null;
-$('goAlbum').onclick=()=>{
+function localAlbumDate(timestamp){
+  const d=new Date(timestamp);
+  return [d.getFullYear(),d.getMonth()+1,d.getDate()].map(part=>String(part).padStart(2,'0')).join('-');
+}
+function renderAlbum(){
   const album=$('ovAlbum'),container=$('albumGrid');
-  const items=chatMedia().reverse();
-  album.classList.add('on');
+  const kind=$('albumKind').value,dateFilter=$('albumDate').value;
+  const items=chatMedia().filter(m=>(!kind||m.kind===kind)&&(!dateFilter||localAlbumDate(m.created_at)===dateFilter));
+  $('albumClearDate').classList.toggle('hidden',!dateFilter);
   container.replaceChildren();
   albumObserver?.disconnect();
-  if(!items.length){container.textContent='Aún no hay fotos ni videos.';return}
+  if(!items.length){container.textContent=kind||dateFilter?'No hay archivos con estos filtros.':'Aún no hay fotos ni videos.';return}
   const previews=new Map();
   albumObserver='IntersectionObserver' in window?new IntersectionObserver((entries,observer)=>{
     for(const entry of entries){
@@ -1385,7 +1462,7 @@ $('goAlbum').onclick=()=>{
   },{root:container.closest('.sheet'),rootMargin:'260px 0px'}):null;
   let day='',grid;
   const dateFormat=new Intl.DateTimeFormat('es',{dateStyle:'long'});
-  for(const m of items){
+  for(const m of items.slice().reverse()){
     const date=dateFormat.format(new Date(m.created_at));
     if(date!==day){
       day=date;
@@ -1403,7 +1480,7 @@ $('goAlbum').onclick=()=>{
     button.append(label);jump.textContent='Ver mensaje';
     jump.onclick=()=>{closeOv(album);panel.classList.remove('on');jumpTo(m.id)};
     button.onclick=async()=>{
-      try{const url=await mediaUrl(m.media_path);if(button.isConnected&&album.classList.contains('on'))openChatMedia(m,url)}
+      try{const url=await mediaUrl(m.media_path);if(button.isConnected&&album.classList.contains('on'))openChatMedia(m,url,items)}
       catch(e){flash('No se pudo abrir el archivo.')}
     };
     const load=async()=>{
@@ -1420,7 +1497,10 @@ $('goAlbum').onclick=()=>{
     tile.append(button,jump);grid.append(tile);
     if(albumObserver){previews.set(button,load);albumObserver.observe(button)}else load();
   }
-};
+}
+$('goAlbum').onclick=()=>{$('ovAlbum').classList.add('on');renderAlbum()};
+$('albumKind').onchange=$('albumDate').onchange=renderAlbum;
+$('albumClearDate').onclick=()=>{$('albumDate').value='';renderAlbum()};
 $('goFav').onclick=()=>{const l=$('favList');l.innerHTML='';const favs=msgs.filter(m=>m.fav);if(!favs.length)l.textContent='Marca mensajes con ★ para verlos aquí.';favs.forEach(m=>{const d=document.createElement('div');d.className='listit';d.innerHTML='<div class="gr"><b style="color:var(--mine)"></b><div></div></div>';d.querySelector('b').textContent=who(m.sender);d.querySelector('.gr div').textContent=snip(m);d.onclick=()=>{$('ovFav').classList.remove('on');jumpTo(m.id)};l.appendChild(d)});$('ovFav').classList.add('on')};
 function listEditor(key,listEl,fmt,onToggle){const l=$(listEl);l.innerHTML='';const arr=couple[key]||[];if(!arr.length)l.innerHTML='<p style="color:var(--soft)">Vacío todavía.</p>';arr.forEach((it,i)=>{const row=document.createElement('div');row.className='listit';const g=document.createElement('div');g.className='gr';fmt(g,it,i);const del=document.createElement('button');del.className='del';del.textContent='✕';del.onclick=()=>{const a=[...arr];a.splice(i,1);saveCouple({[key]:a})};row.append(g,del);l.appendChild(row)})}
 $('goReasons').onclick=()=>{listEditor('reasons','reasonsList',(g,it)=>g.textContent=it);$('ovReasons').classList.add('on')};
@@ -1534,7 +1614,7 @@ async function updateLocationOnBuzz(sender,manual=false){
     if(!manual){
       const permission=await navigator.permissions?.query({name:'geolocation'}).catch(()=>null);
       if(permission&&permission.state!=='granted'){
-        status.textContent='El celular requiere permiso. Toca Comprobar y compartir ahora.';
+        status.textContent='El celular requiere permiso. Toca Compartir mi ubicación ahora.';
         return;
       }
     }
@@ -2069,9 +2149,20 @@ function renderHot(){const w=$('hotWrap');w.innerHTML='';const box=w.parentEleme
     w.appendChild(b)}
   if(near)box.scrollTop=box.scrollHeight}
 async function burnNow(m){setTimeout(async()=>{await sb.from('hot_msgs').delete().eq('id',m.id);if(m.media_path)sb.storage.from('media').remove([m.media_path]);loadHot()},1200)}
-$('hsend').onclick=async()=>{const v=$('htxt').value.trim();if(!v)return;$('htxt').value='';hotGrow();try{await sb.from('hot_msgs').insert({kind:'text',body:v.slice(0,2000),burn:0});hotNotify();loadHot()}catch(e){flash('No se pudo enviar')}};
+$('hsend').onclick=async()=>{
+  const field=$('htxt'),send=$('hsend'),original=field.value,v=original.trim();
+  if(!v||send.disabled||!navigator.onLine)return;
+  send.disabled=true;
+  try{
+    const {error}=await sb.from('hot_msgs').insert({kind:'text',body:v.slice(0,2000),burn:0});
+    if(error)throw error;
+    if(field.value===original){field.value='';hotGrow()}
+    hotNotify();loadHot();
+  }catch(e){flash('No se pudo enviar')}
+  finally{send.disabled=false}
+};
 holdToRecord({mic:$('hmic'),bar:$('hrecbar'),time:$('hrectime'),hint:$('hrechint'),hideEl:$('htxt'),onSend:async(blob,dur)=>{const path=await upload(blob,'wav','hot');const {error}=await sb.from('hot_msgs').insert({kind:'voice',media_path:path,duration:dur,burn:0});if(error)throw error;hotNotify();loadHot()}});
-function hotGrow(){const has=!!$('htxt').value.trim();$('hsend').classList.toggle('hidden',!has);$('hmic').classList.toggle('hidden',has)}
+function hotGrow(){const field=$('htxt');saveDraft(field);const has=!!field.value.trim();$('hsend').classList.toggle('hidden',!has);$('hmic').classList.toggle('hidden',has)}
 $('htxt').addEventListener('input',hotGrow);
 $('htxt').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&matchMedia('(pointer:fine)').matches){e.preventDefault();$('hsend').click()}});
 $('hcam').onclick=()=>openCam('hot');
