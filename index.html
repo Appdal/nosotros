@@ -278,6 +278,10 @@ input[type=file]{display:none}
 <div class="ov" id="ovLove"><div class="sheet"><h3>Pensando en ti 💞</h3><p>Elige un mensaje o escribe el tuyo. Le llega como notificación.</p><div id="loveList"></div><div class="rowline"><input id="lvIn" placeholder="Tu mensaje de amor…"><button class="pill sm" id="lvSend">Enviar</button></div><button class="pill alt ovx">Cerrar</button></div></div>
 <div class="ov" id="ovPin"><div class="sheet"><h3 id="pinTitle">Zona privada 🔒</h3><p id="pinMsg">Escribe el código de 4 dígitos.</p><input id="pinInput" type="password" inputmode="numeric" maxlength="4" placeholder="••••" style="text-align:center;letter-spacing:8px;font-size:22px"><div id="pinErr" style="color:#c0392b;font-size:14px;min-height:18px"></div><button class="pill" id="pinGo">Entrar</button><button class="pill alt ovx">Cancelar</button></div></div>
 <div class="ov" id="ovBig"><div class="sheet" style="background:transparent;align-items:center"><img id="bigImg" style="max-width:100%;max-height:80dvh;border-radius:12px"><video id="bigVid" class="hidden" controls playsinline style="max-width:100%;max-height:80dvh;border-radius:12px;background:#000"></video><button class="pill alt ovx">Cerrar</button></div></div>
+<div class="ov" id="ovCrop"><div class="sheet" style="align-items:center"><h3>Recorta tu foto</h3><p style="text-align:center">Arrastra para moverla · pellizca o usa la barra para acercar</p>
+  <div id="cropStage" style="position:relative;width:min(78vw,300px);aspect-ratio:1;touch-action:none;border-radius:14px;overflow:hidden;background:#000;cursor:grab"><canvas id="cropCv" style="width:100%;height:100%;display:block"></canvas><div style="position:absolute;inset:0;border-radius:50%;box-shadow:0 0 0 999px rgba(0,0,0,.55);border:2px solid rgba(255,255,255,.9);pointer-events:none"></div></div>
+  <div class="rowline" style="width:min(78vw,300px)"><span>➖</span><input id="cropZoom" type="range" min="1" max="4" step="0.01" value="1" style="flex:1;padding:0;border:0;background:none;accent-color:var(--mine)"><span>➕</span></div>
+  <button class="pill" id="cropOk" style="width:100%">Usar esta foto</button><button class="pill alt ovx" style="width:100%">Cancelar</button></div></div>
 <div class="ov" id="ovHotMedia"><div class="sheet"><h3 id="hmTitle">Enviar foto</h3><p>¿Cómo quieres enviarla?</p><button class="pill" id="hmNormal">Enviar normal</button><button class="pill alt" id="hmOnce">👁 Ver una vez (se borra al verla)</button><button class="pill alt ovx">Cancelar</button></div></div>
 <div class="ov" id="ovProfile"><div class="sheet" style="align-items:stretch">
   <div style="text-align:center">
@@ -577,7 +581,7 @@ const panel=$('panel');
 $('menu').onclick=()=>{panel.classList.add('on');fillPanel();checkPushState()};
 $('pClose').onclick=()=>panel.classList.remove('on');
 panel.onclick=e=>{if(e.target===panel)panel.classList.remove('on')};
-function closeOv(o){o.classList.remove('on');if(o.id==='ovBig')bigClosed();if(o.id==='ovHotMedia')hotPending=null}
+function closeOv(o){o.classList.remove('on');if(o.id==='ovBig')bigClosed();if(o.id==='ovHotMedia')hotPending=null;if(o.id==='ovCrop')cropEnd()}
 document.querySelectorAll('.ovx').forEach(b=>b.onclick=e=>closeOv(e.target.closest('.ov')));
 document.querySelectorAll('.ov').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)closeOv(o)}));
 /* visor grande: foto o video; onClose se ejecuta al cerrarlo */
@@ -595,7 +599,26 @@ function fillPanel(){
   const dl=$('datesList');dl.innerHTML='';(couple.dates||[]).forEach((d,i)=>{const row=document.createElement('div');row.className='listit';row.innerHTML='<span class="gr"></span><button class="del">✕</button>';row.querySelector('.gr').textContent=d.label+' · '+d.date;row.querySelector('.del').onclick=()=>{const arr=[...(couple.dates||[])];arr.splice(i,1);saveCouple({dates:arr})};dl.appendChild(row)});
 }
 $('myAvBtn').onclick=()=>$('myAvIn').click();
-$('myAvIn').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;show('Subiendo foto…');try{const path=await upload(f,(f.name.split('.').pop()||'jpg').toLowerCase().replace(/[^a-z0-9]/g,'')||'jpg','av');await saveCouple({avatars:{...(couple.avatars||{}),[me]:path}});fillPanel();status();show('')}catch(err){show('No se pudo subir')}};
+$('myAvIn').onchange=e=>{const f=e.target.files[0];e.target.value='';if(f)openCrop(f)};
+/* recortador de foto de perfil: mover arrastrando, acercar con pellizco, rueda o barra */
+let crop=null;
+function openCrop(f){const u=URL.createObjectURL(f),img=new Image();img.onload=()=>{crop={img,u,zoom:1,fx:0,fy:0,ptrs:new Map(),pinch:0};$('cropZoom').value=1;$('ovCrop').classList.add('on');requestAnimationFrame(()=>{const cv=$('cropCv'),w=cv.getBoundingClientRect().width||300,d=Math.min(2,devicePixelRatio||1);cv.width=cv.height=Math.round(w*d);drawCrop()})};img.onerror=()=>{URL.revokeObjectURL(u);flash('No se pudo abrir esa imagen')};img.src=u}
+function cropEnd(){if(crop)URL.revokeObjectURL(crop.u);crop=null;$('ovCrop').classList.remove('on')}
+function cropGeom(S){const n=crop.img,k=S/Math.min(n.naturalWidth,n.naturalHeight)*crop.zoom,w=n.naturalWidth*k,h=n.naturalHeight*k,mx=(w-S)/2/S,my=(h-S)/2/S;crop.fx=Math.max(-mx,Math.min(mx,crop.fx));crop.fy=Math.max(-my,Math.min(my,crop.fy));return [(S-w)/2+crop.fx*S,(S-h)/2+crop.fy*S,w,h]}
+let cropRaf=0;function drawCrop(){if(cropRaf)return;cropRaf=requestAnimationFrame(()=>{cropRaf=0;if(!crop)return;const cv=$('cropCv'),c=cv.getContext('2d'),S=cv.width;c.fillStyle='#000';c.fillRect(0,0,S,S);const [x,y,w,h]=cropGeom(S);c.drawImage(crop.img,x,y,w,h)})}
+function cropZoomTo(z){if(!crop)return;crop.zoom=Math.max(1,Math.min(4,z));$('cropZoom').value=crop.zoom;drawCrop()}
+$('cropZoom').addEventListener('input',e=>cropZoomTo(+e.target.value));
+const cropStage=$('cropStage');
+cropStage.addEventListener('wheel',e=>{e.preventDefault();if(crop)cropZoomTo(crop.zoom*(e.deltaY<0?1.08:1/1.08))},{passive:false});
+cropStage.addEventListener('pointerdown',e=>{if(!crop)return;try{cropStage.setPointerCapture(e.pointerId)}catch(_){}crop.ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});crop.pinch=0});
+cropStage.addEventListener('pointermove',e=>{if(!crop||!crop.ptrs.has(e.pointerId))return;const prev=crop.ptrs.get(e.pointerId);crop.ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});const W=cropStage.getBoundingClientRect().width||300;
+  if(crop.ptrs.size===1){crop.fx+=(e.clientX-prev.x)/W;crop.fy+=(e.clientY-prev.y)/W;drawCrop()}
+  else if(crop.ptrs.size===2){const [a,b]=[...crop.ptrs.values()],dist=Math.hypot(a.x-b.x,a.y-b.y);if(crop.pinch)cropZoomTo(crop.zoom*dist/crop.pinch);crop.pinch=dist}});
+const cropUp=e=>{if(crop){crop.ptrs.delete(e.pointerId);crop.pinch=0}};
+cropStage.addEventListener('pointerup',cropUp);cropStage.addEventListener('pointercancel',cropUp);
+$('cropOk').onclick=async()=>{if(!crop)return;const out=document.createElement('canvas');out.width=out.height=512;const c=out.getContext('2d');c.fillStyle='#fff';c.fillRect(0,0,512,512);const [x,y,w,h]=cropGeom(512);c.drawImage(crop.img,x,y,w,h);cropEnd();
+  const blob=await new Promise(r=>out.toBlob(r,'image/jpeg',.9));if(!blob){flash('No se pudo recortar');return}
+  show('Subiendo foto…');try{const path=await upload(blob,'jpg','av');await saveCouple({avatars:{...(couple.avatars||{}),[me]:path}});fillPanel();status();show('')}catch(err){show('No se pudo subir')}};
 $('chatNameSave').onclick=()=>{saveCouple({chatName:$('chatName').value.trim()});flash('Guardado')};
 $('annivSave').onclick=()=>{saveCouple({anniversary:$('anniv').value});flash('Guardado');fillPanel()};
 $('dAdd').onclick=()=>{const label=$('dName').value.trim(),date=$('dDate').value;if(!label||!date)return;saveCouple({dates:[...(couple.dates||[]),{label,date}]});$('dName').value='';$('dDate').value='';fillPanel()};
