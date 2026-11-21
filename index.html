@@ -422,6 +422,7 @@ input[type=file]{display:none}
   </div>
   <div class="cbtns hidden" id="cAct">
     <button class="cb" id="cMin" aria-label="Minimizar llamada" title="Minimizar y ver el chat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
+    <button class="cb" id="cPip" aria-label="Ventana flotante" title="Ventana flotante"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2.5"/><rect x="12" y="11" width="7" height="6" rx="1.2" fill="currentColor"/></svg></button>
     <button class="cb" id="cMute" aria-label="Silenciar micrófono">🎙️</button>
     <button class="cb" id="cCam" aria-label="Cámara">📷</button>
     <button class="cb" id="cFlip" aria-label="Cambiar cámara">🔄</button>
@@ -969,7 +970,7 @@ const cui=$('callUI');
 function cState(cls,status){cui.classList.remove('waiting','live');if(cls)cui.classList.add(cls);if(status!=null)$('cStatus').textContent=status}
 function showCallUI(video,incoming){cui.classList.add('on');cui.classList.remove('mini');cui.classList.toggle('audio',!video);$('cName').textContent=otherName()||'Tu pareja';
   const avph=couple.avatars&&other&&couple.avatars[other];const ca=$('cAv');ca.innerHTML='';if(avph){const i=document.createElement('img');mediaUrl(avph).then(u=>i.src=u).catch(()=>{});ca.appendChild(i)}else ca.textContent=(otherName()||'♥')[0].toUpperCase();
-  $('lv').style.display=incoming||!video?'none':'';$('cIn').classList.toggle('hidden',!incoming);$('cAct').classList.toggle('hidden',incoming);$('cCam').classList.toggle('hidden',!video);$('cFlip').classList.toggle('hidden',!video);$('cMute').classList.remove('off');$('cCam').classList.remove('off')}
+  $('lv').style.display=incoming||!video?'none':'';$('cIn').classList.toggle('hidden',!incoming);$('cAct').classList.toggle('hidden',incoming);$('cCam').classList.toggle('hidden',!video);$('cPip').classList.toggle('hidden',!video||!pipOK());$('cFlip').classList.toggle('hidden',!video);$('cMute').classList.remove('off');$('cCam').classList.remove('off')}
 function startRing(kind){
   stopRing();unlock();
   const play=()=>{
@@ -1028,7 +1029,7 @@ $('cFlip').onclick=async()=>{if(!call||!call.stream||!call.video)return;const fa
 /* --- terminar --- */
 async function endCall(text,logIt,outcome){const c=call;if(!c)return;call=null;if(c.dz){clearInterval(c.dz.timer);try{c.dz.out.stop()}catch(e){}}clearInterval(c.pushIv);clearInterval(ringIv);clearTimeout(c.noAns);clearInterval(c.watch);clearInterval(c.timer);stopRing();
   try{c.pc&&c.pc.close()}catch(e){}try{c.stream&&c.stream.getTracks().forEach(t=>t.stop())}catch(e){}
-  cui.classList.remove('mini');vzReset();$('rv').srcObject=null;$('lv').srcObject=null;if(text){cState(null,text);setTimeout(()=>{if(!call)cui.classList.remove('on')},1400)}else cui.classList.remove('on');
+  exitPip();cui.classList.remove('mini');vzReset();$('rv').srcObject=null;$('lv').srcObject=null;if(text){cState(null,text);setTimeout(()=>{if(!call)cui.classList.remove('on')},1400)}else cui.classList.remove('on');
   if(c.role==='out'&&c.msgId&&logIt!==false){const base=c.video?'🎥 Videollamada':'📞 Llamada';const body=c.t0?base+' · '+mmss((Date.now()-c.t0)/1000):base+' '+(outcome||'no contestada');try{await sb.from('messages').update({body}).eq('id',c.msgId);if(!c.t0&&!(other&&online[other]))sb.functions.invoke('notify',{body:{message_id:c.msgId}}).catch(()=>{})}catch(e){}if(byId[c.msgId]){byId[c.msgId].body=body;render()}}}
 $('callA').onclick=()=>startCall(false);$('callV').onclick=()=>startCall(true);
 addEventListener('pagehide',()=>{if(call){sig('hangup');}});
@@ -1056,6 +1057,21 @@ function noteCleanup(){if(!me)return;const oRead=new Date(profiles[other]?.last_
     else if(oRead>=new Date(m.created_at).getTime())noteTimers[id]=setTimeout(async()=>{try{await sb.from('messages').delete().eq('id',id)}catch(e){}msgs=msgs.filter(x=>x.id!==id);delete byId[id];render()},60000)}}
 function hideNotesNow(){let ch=false;for(const m of msgs)if(m.kind==='note'&&m.sender!==me&&!hidden.has(m.id)){hidden.add(m.id);ch=true}if(ch){render();saveHidden()}}
 
+/* ---------- VENTANA FLOTANTE (imagen en imagen) ----------
+   Botón ⧉ en la videollamada: el video de tu pareja queda flotando sobre otras apps, con su voz.
+   Al salir de la app también intenta ponerse flotante solo (Chrome Android con Media Session; Safari con autopictureinpicture).
+   Nota: el sistema apaga TU cámara mientras estás fuera de la app; al volver se reanuda. */
+const rvEl=$('rv');try{rvEl.autoPictureInPicture=true;rvEl.setAttribute('autopictureinpicture','')}catch(e){}
+function pipOK(){return !!((document.pictureInPictureEnabled&&rvEl.requestPictureInPicture)||(rvEl.webkitSupportsPresentationMode&&rvEl.webkitSupportsPresentationMode('picture-in-picture')))}
+async function enterPip(){if(!call||!call.video||!rvEl.srcObject)return;try{if(document.pictureInPictureElement)return;
+  if(document.pictureInPictureEnabled&&rvEl.requestPictureInPicture){await rvEl.play().catch(()=>{});await rvEl.requestPictureInPicture()}
+  else if(rvEl.webkitSetPresentationMode)rvEl.webkitSetPresentationMode('picture-in-picture')}catch(e){flash('Tu celular no permitió la ventana flotante',4000)}}
+function exitPip(){try{if(document.pictureInPictureElement)document.exitPictureInPicture().catch(()=>{});else if(rvEl.webkitPresentationMode==='picture-in-picture')rvEl.webkitSetPresentationMode('inline')}catch(e){}}
+$('cPip').onclick=ev=>{ev.stopPropagation();enterPip()};
+try{navigator.mediaSession&&navigator.mediaSession.setActionHandler('enterpictureinpicture',()=>enterPip())}catch(e){}
+/* al salir de la app: el lienzo del zoom se frena en segundo plano, así que se envía la cámara directa; al volver, se reanuda */
+document.addEventListener('visibilitychange',()=>{if(!call||!call.pc||!call.dz)return;const snd=call.pc.getSenders().find(x=>x.track&&x.track.kind==='video');const raw=call.stream&&call.stream.getVideoTracks()[0];if(!snd||!raw)return;
+  snd.replaceTrack(document.hidden?raw:call.dz.out).catch(()=>{})});
 /* llamada minimizada: se encoge a una burbuja y deja ver el chat; tocarla la vuelve a abrir */
 let miniDrag=null,miniMoved=false,miniX=0,miniY=0;
 function moveMini(x,y){
