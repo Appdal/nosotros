@@ -137,6 +137,25 @@ input[type=file]{display:none}
 .listit .gr{flex:1}.listit .del{color:var(--soft);background:none;border:0;font-size:16px}
 .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
 .grid img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;background:var(--line)}
+/* stickers */
+.m.stkm{background:transparent!important;box-shadow:none;padding:0;color:var(--ink)}
+.m.stkm .t{display:inline-block;float:right;background:color-mix(in srgb,var(--bar) 80%,transparent);color:var(--soft);border-radius:99px;padding:0 7px;margin-top:2px}
+.stk{display:block;width:150px;height:150px;object-fit:contain;background:transparent}
+.stk.c{border-radius:50%;object-fit:cover}.stk.r{border-radius:22%;object-fit:cover}
+.stkgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.stkgrid .it{position:relative;aspect-ratio:1;border-radius:12px;background:var(--bg);display:grid;place-items:center;overflow:hidden;border:1px solid var(--line)}
+.stkgrid .it img,.stkgrid .it video{width:100%;height:100%;object-fit:contain}
+.stkgrid .it.c img,.stkgrid .it.c video{border-radius:50%;object-fit:cover}.stkgrid .it.r img,.stkgrid .it.r video{border-radius:22%;object-fit:cover}
+.stkgrid .it .del{position:absolute;top:2px;right:2px;width:22px;height:22px;border-radius:50%;border:0;background:rgba(0,0,0,.55);color:#fff;font-size:12px;display:none}
+.stkgrid.edit .it .del{display:grid;place-items:center}
+#stkStage{position:relative;width:min(78vw,300px);aspect-ratio:1;touch-action:none;border-radius:14px;overflow:hidden;cursor:grab;
+  background:repeating-conic-gradient(#ddd 0 25%,#fff 0 50%) 0 0/20px 20px}
+#stkCv{width:100%;height:100%;display:block}
+.emogrid{display:grid;grid-template-columns:repeat(8,1fr);gap:2px;max-height:50dvh;overflow:auto}
+.emogrid button{font-size:26px;background:none;border:0;padding:4px;border-radius:8px}
+.emogrid button:active{background:var(--line)}
+.emocat{grid-column:1/-1;font-size:13px;font-weight:600;color:var(--soft);margin:8px 0 2px}
+.acts .emo.more{font-size:18px;width:32px;height:32px;border-radius:50%;background:rgba(0,0,0,.12)}
 /* llamadas */
 #callUI{position:fixed;inset:0;z-index:60;background:#0d0a0c;color:#fff;display:none;flex-direction:column}
 #callUI.on{display:flex}
@@ -210,6 +229,7 @@ input[type=file]{display:none}
   <div class="row">
     <button class="btn" id="cam" aria-label="Cámara"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="14" rx="3"/><circle cx="12" cy="13" r="3.5"/><path d="M8 6l1.5-2h5L16 6"/></svg></button>
     <button class="btn" id="gal" aria-label="Galería"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="9.5" r="1.8"/><path d="M21 16l-5-5-9 9"/></svg></button>
+    <button class="btn" id="stkBtn" aria-label="Stickers"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.5V7a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v10a4 4 0 0 0 4 4h5.5"/><path d="M21 12.5c-4.5 0-8.5 4-8.5 8.5"/><path d="M12.5 21 21 12.5"/><circle cx="9" cy="10" r="1" fill="currentColor"/><circle cx="15" cy="10" r="1" fill="currentColor"/><path d="M8.5 14.5c1 1 2.2 1.4 3.5 1.3"/></svg></button>
     <input type="file" id="camIn" accept="image/*" capture="environment">
     <input type="file" id="camVidIn" accept="video/*" capture="environment">
     <input type="file" id="galIn" accept="image/*,video/*" multiple>
@@ -318,6 +338,22 @@ input[type=file]{display:none}
   <label style="display:flex;gap:8px;align-items:center;font-size:14px;color:var(--soft)"><input type="checkbox" id="npShow" style="width:auto"> Mostrar contraseña</label>
   <div id="npErr" style="color:#c0392b;font-size:14px;min-height:18px"></div>
   <button class="pill" id="npSave">Guardar contraseña</button><button class="pill alt ovx">Cancelar</button></div></div>
+<div class="ov" id="ovStk"><div class="sheet"><div class="rowline" style="justify-content:space-between"><h3>Stickers</h3><button class="pill sm alt" id="stkEdit">Editar</button></div>
+  <div class="stkgrid" id="stkGrid"></div>
+  <div class="seg"><button class="pill sm" id="stkNewImg">➕ Desde foto</button><button class="pill sm" id="stkNewVid">➕ Desde video</button></div>
+  <input type="file" id="stkImgIn" accept="image/*"><input type="file" id="stkVidIn" accept="video/*">
+  <button class="pill alt ovx">Cerrar</button></div></div>
+<div class="ov" id="ovStkEd"><div class="sheet" style="align-items:center"><h3 id="stkEdTitle">Nuevo sticker</h3><p style="text-align:center">Arrastra para mover · pellizca o usa la barra para acercar</p>
+  <div id="stkStage"><canvas id="stkCv"></canvas></div>
+  <div class="rowline" style="width:min(78vw,300px)"><span>➖</span><input id="stkZoom" type="range" min="1" max="4" step="0.01" value="1" style="flex:1;padding:0;border:0;background:none;accent-color:var(--mine)"><span>➕</span></div>
+  <div class="seg" id="stkShapes" style="width:100%"><button data-sh="s">⬛ Cuadrado</button><button data-sh="r">▢ Redondeado</button><button data-sh="c">⚪ Círculo</button></div>
+  <div class="rowline" style="width:100%"><input id="stkText" maxlength="40" placeholder="Texto (opcional)"><button class="pill sm alt" id="stkPos">Abajo</button></div>
+  <div id="stkVidOpts" class="hidden" style="width:100%"><p id="stkVidLbl">Desde 0:00 · 3 s</p>
+    <div class="rowline"><span style="font-size:13px">Inicio</span><input id="stkStart" type="range" min="0" max="0" step="0.1" value="0" style="flex:1;padding:0;border:0;background:none;accent-color:var(--mine)"></div>
+    <div class="rowline"><span style="font-size:13px">Duración</span><input id="stkDur" type="range" min="1" max="5" step="0.5" value="3" style="flex:1;padding:0;border:0;background:none;accent-color:var(--mine)"></div></div>
+  <div class="seg" style="width:100%"><button class="pill" id="stkSaveSend">Guardar y enviar</button><button class="pill alt" id="stkSave">Solo guardar</button></div>
+  <button class="pill alt ovx" style="width:100%">Cancelar</button></div></div>
+<div class="ov" id="ovEmoji"><div class="sheet"><h3>Reaccionar</h3><div class="emogrid" id="emoGrid"></div><button class="pill alt ovx">Cerrar</button></div></div>
 <div class="ov" id="ovCam"><div class="sheet"><h3>Cámara</h3><button class="pill" id="camPhoto">📷 Tomar foto</button><button class="pill" id="camVideo">🎥 Grabar video</button><button class="pill alt hidden" id="camGal">🖼️ Elegir de la galería</button><button class="pill alt ovx">Cancelar</button></div></div>
 <div class="ov" id="ovCrop"><div class="sheet" style="align-items:center"><h3>Recorta tu foto</h3><p style="text-align:center">Arrastra para moverla · pellizca o usa la barra para acercar</p>
   <div id="cropStage" style="position:relative;width:min(78vw,300px);aspect-ratio:1;touch-action:none;border-radius:14px;overflow:hidden;background:#000;cursor:grab"><canvas id="cropCv" style="width:100%;height:100%;display:block"></canvas><div style="position:absolute;inset:0;border-radius:50%;box-shadow:0 0 0 999px rgba(0,0,0,.55);border:2px solid rgba(255,255,255,.9);pointer-events:none"></div></div>
@@ -398,7 +434,7 @@ const realName=id=>String(profiles[id]?.name||'').trim();
 const nickOf=()=>(couple.nicks&&me&&couple.nicks[me])||'';
 const otherName=()=>nickOf()||realName(other);
 const who=id=>id===me?'Tú':(id===other&&nickOf())||names[id]||'Tu pareja';
-const snip=m=>m.kind==='call'?String(m.body||'📞 Llamada'):m.kind==='buzz'?'⚡ Zumbido':m.kind==='image'?'📷 Foto':m.kind==='voice'?'🎤 Audio':m.kind==='video'?'🎬 Video':String(m.body||'').slice(0,120);
+const snip=m=>m.kind==='sticker'?'🌟 Sticker':m.kind==='call'?String(m.body||'📞 Llamada'):m.kind==='buzz'?'⚡ Zumbido':m.kind==='image'?'📷 Foto':m.kind==='voice'?'🎤 Audio':m.kind==='video'?'🎬 Video':String(m.body||'').slice(0,120);
 const dayNum=()=>Math.floor((Date.now()-new Date().getTimezoneOffset()*60000)/86400000);
 
 /* ---------- sonido / efectos ---------- */
@@ -552,11 +588,13 @@ function buildMsg(m){
   if(m.reply_to){const r=byId[m.reply_to];const qq=document.createElement('div');qq.className='q';const qb=document.createElement('b'),qs=document.createElement('span');qb.textContent=r?who(r.sender):'';qs.textContent=r?snip(r):'Mensaje eliminado';qq.append(qb,qs);qq.onclick=ev=>{ev.stopPropagation();jumpTo(m.reply_to)};b.appendChild(qq)}
   if(m.kind==='image'||m.kind==='video')imgInto(b,m);
   if(m.kind==='voice')b.appendChild(voiceEl(m));
+  if(m.kind==='sticker'){b.classList.add('stkm');stickerInto(b,m.media_path)}
   if(m.body)b.appendChild(document.createTextNode(m.body));
   const t=document.createElement('span');t.className='t';t.innerHTML=(m.fav?'<span class="star">★</span> ':'')+hm(m.created_at)+(mine?'<span class="tk">✓</span>':'');b.appendChild(t);
   const rx=m.reactions||{};const emos=Object.values(rx).filter(Boolean);if(emos.length){const rr=document.createElement('div');rr.className='rx';const counts={};emos.forEach(e=>counts[e]=(counts[e]||0)+1);for(const [e,n] of Object.entries(counts)){const s=document.createElement('span');s.textContent=e+(n>1?' '+n:'');rr.appendChild(s)}b.appendChild(rr)}
   const acts=document.createElement('div');acts.className='acts';
   for(const e of ['❤️','😂','😮','😍','🔥']){const eb=document.createElement('button');eb.className='emo';eb.textContent=e;eb.onclick=ev=>{ev.stopPropagation();react(cur(),e)};acts.appendChild(eb)}
+  {const mb=document.createElement('button');mb.className='emo more';mb.textContent='➕';mb.title='Más reacciones';mb.onclick=ev=>{ev.stopPropagation();openEmoji(id)};acts.appendChild(mb)}
   const fb=document.createElement('button');fb.className='tb';fb.textContent=m.fav?'★':'☆';fb.onclick=ev=>{ev.stopPropagation();toggleFav(cur())};acts.appendChild(fb);
   const rb=document.createElement('button');rb.className='tb';rb.textContent='Responder';rb.onclick=ev=>{ev.stopPropagation();startReply(cur())};acts.appendChild(rb);
   const x=document.createElement('button');x.className='tb';x.textContent='Borrar para mí';x.onclick=ev=>{ev.stopPropagation();hideForMe(id)};acts.appendChild(x);
@@ -690,7 +728,7 @@ const panel=$('panel');
 $('menu').onclick=()=>{panel.classList.add('on');fillPanel();checkPushState()};
 $('pClose').onclick=()=>panel.classList.remove('on');
 panel.onclick=e=>{if(e.target===panel)panel.classList.remove('on')};
-function closeOv(o){o.classList.remove('on');if(o.id==='ovBig')bigClosed();if(o.id==='ovHotMedia')hotPending=null;if(o.id==='ovCrop')cropEnd()}
+function closeOv(o){o.classList.remove('on');if(o.id==='ovBig')bigClosed();if(o.id==='ovHotMedia')hotPending=null;if(o.id==='ovCrop')cropEnd();if(o.id==='ovStkEd')seClose()}
 document.querySelectorAll('.ovx').forEach(b=>b.onclick=e=>closeOv(e.target.closest('.ov')));
 document.querySelectorAll('.ov').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)closeOv(o)}));
 /* visor grande: foto o video; onClose se ejecuta al cerrarlo */
@@ -755,6 +793,85 @@ async function saveSub(s){const j=s.toJSON();await sb.from('push_subs').upsert({
 async function enablePush(){try{const perm=await Notification.requestPermission();if(perm!=='granted'){checkPushState();return}const reg=await navigator.serviceWorker.ready;const {data,error}=await sb.functions.invoke('notify',{method:'GET'});if(error||!data?.publicKey)throw new Error('faltan las claves');const s=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64u(data.publicKey)});await saveSub(s);flash('✓ Notificaciones activadas');checkPushState()}catch(e){flash('No se pudieron activar: '+(e.message||e),6000)}}
 async function disablePush(){try{const reg=await navigator.serviceWorker.ready;const s=await reg.pushManager.getSubscription();if(s){await sb.from('push_subs').delete().eq('endpoint',s.endpoint);await s.unsubscribe()}flash('🔕 Notificaciones desactivadas');checkPushState()}catch(e){flash('No se pudieron desactivar')}}
 $('pNotif').onclick=()=>$('pNotif').dataset.on?disablePush():enablePush();
+
+/* ---------- STICKERS ----------
+   Colección compartida (couple.stickers = [{p:ruta, a:animado, sh:forma}]). Desde foto: PNG/WebP 512 px con
+   transparencia. Desde video: clip corto en bucle (sin sonido) grabado del lienzo; la forma se aplica al mostrarlo. */
+const shOf=p=>{const m=/-(s|r|c)\.\w+$/.exec(p||'');return m?m[1]:'s'};
+const isAnim=p=>/\.(webm|mp4)$/i.test(p||'');
+function stickerEl(path,cls){const sh=shOf(path);let el;if(isAnim(path)){el=document.createElement('video');el.muted=true;el.loop=true;el.autoplay=true;el.playsInline=true;el.setAttribute('playsinline','')}else{el=document.createElement('img');el.decoding='async';el.alt='Sticker'}el.className=cls+(sh!=='s'?' '+sh:'');mediaUrl(path).then(u=>{el.src=u;if(el.play)el.play().catch(()=>{})}).catch(()=>{});return el}
+function stickerInto(b,path){const ph=document.createElement('div');ph.className='stk'+(shOf(path)!=='s'?' '+shOf(path):'');b.appendChild(ph);const load=()=>ph.replaceWith(stickerEl(path,'stk'));if(lazyIO){ph._load=load;lazyIO.observe(ph)}else load()}
+let stkEditing=false;
+function renderStk(){const g=$('stkGrid');g.innerHTML='';g.classList.toggle('edit',stkEditing);const arr=couple.stickers||[];
+  if(!arr.length){g.innerHTML='<p style="grid-column:1/-1;color:var(--soft);text-align:center">Aún no hay stickers. Crea el primero desde una foto o un video 👇</p>';return}
+  [...arr].reverse().forEach(st=>{const it=document.createElement('div');it.className='it'+(shOf(st.p)!=='s'?' '+shOf(st.p):'');it.appendChild(stickerEl(st.p,''));
+    const d=document.createElement('button');d.className='del';d.textContent='✕';d.onclick=ev=>{ev.stopPropagation();saveCouple({stickers:(couple.stickers||[]).filter(x=>x.p!==st.p)}).then(renderStk)};it.appendChild(d);
+    it.onclick=()=>{if(stkEditing)return;$('ovStk').classList.remove('on');sendSticker(st.p)};g.appendChild(it)})}
+async function sendSticker(path){try{await post({kind:'sticker',media_path:path})}catch(e){}}
+$('stkBtn').onclick=()=>{stkEditing=false;$('stkEdit').textContent='Editar';renderStk();$('ovStk').classList.add('on')};
+$('stkEdit').onclick=()=>{stkEditing=!stkEditing;$('stkEdit').textContent=stkEditing?'Listo':'Editar';renderStk()};
+$('stkNewImg').onclick=()=>$('stkImgIn').click();$('stkNewVid').onclick=()=>$('stkVidIn').click();
+/* --- editor --- */
+let se=null;
+function seOpen(src,isVid,url){se={src,isVid,url,zoom:1,fx:0,fy:0,sh:'r',text:'',pos:'b',start:0,dur:3,ptrs:new Map(),pinch:0};
+  $('stkEdTitle').textContent=isVid?'Sticker animado':'Nuevo sticker';$('stkZoom').value=1;$('stkText').value='';$('stkPos').textContent='Abajo';$('stkVidOpts').classList.toggle('hidden',!isVid);
+  if(isVid){const d=src.duration||0;$('stkStart').max=Math.max(0,d-1).toFixed(1);$('stkStart').value=0;$('stkDur').value=Math.min(3,Math.max(1,d||3));se.dur=+$('stkDur').value;vidLbl()}
+  shapeBtns();$('ovStk').classList.remove('on');$('ovStkEd').classList.add('on');
+  requestAnimationFrame(()=>{const cv=$('stkCv'),w=cv.getBoundingClientRect().width||300,d=Math.min(2,devicePixelRatio||1);cv.width=cv.height=Math.round(w*d);seLoop()})}
+function seClose(){if(!se)return;se.closed=true;try{se.isVid&&se.src.pause()}catch(e){}URL.revokeObjectURL(se.url);se=null;$('ovStkEd').classList.remove('on')}
+function shapeBtns(){$('stkShapes').querySelectorAll('button').forEach(b=>b.classList.toggle('sel',se&&b.dataset.sh===se.sh))}
+$('stkShapes').querySelectorAll('button').forEach(b=>b.onclick=()=>{if(se){se.sh=b.dataset.sh;shapeBtns()}});
+$('stkText').oninput=e=>{if(se)se.text=e.target.value};
+$('stkPos').onclick=()=>{if(!se)return;se.pos=se.pos==='b'?'t':'b';$('stkPos').textContent=se.pos==='b'?'Abajo':'Arriba'};
+$('stkZoom').oninput=e=>{if(se)se.zoom=+e.target.value};
+function vidLbl(){$('stkVidLbl').textContent='Desde '+mmss(se.start)+' · '+se.dur+' s'}
+$('stkStart').oninput=e=>{if(!se)return;se.start=+e.target.value;try{se.src.currentTime=se.start}catch(_){}vidLbl()};
+$('stkDur').oninput=e=>{if(!se)return;se.dur=+e.target.value;vidLbl()};
+function srcDims(){return se.isVid?[se.src.videoWidth,se.src.videoHeight]:[se.src.naturalWidth,se.src.naturalHeight]}
+/* dibuja el sticker en un lienzo de S×S; clip=true recorta la forma con transparencia */
+function seDraw(ctx,S,clip){const [W,H]=srcDims();ctx.clearRect(0,0,S,S);if(!W||!H)return;const k=S/Math.min(W,H)*se.zoom,w=W*k,h=H*k,mx=(w-S)/2/S,my=(h-S)/2/S;
+  se.fx=Math.max(-mx,Math.min(mx,se.fx));se.fy=Math.max(-my,Math.min(my,se.fy));
+  ctx.save();if(clip&&se.sh!=='s'){ctx.beginPath();if(se.sh==='c')ctx.arc(S/2,S/2,S/2,0,Math.PI*2);else if(ctx.roundRect)ctx.roundRect(0,0,S,S,S*.22);else ctx.rect(0,0,S,S);ctx.clip()}
+  ctx.drawImage(se.src,(S-w)/2+se.fx*S,(S-h)/2+se.fy*S,w,h);ctx.restore();
+  const t=se.text.trim();if(t){let fs=S*.13;ctx.font='800 '+fs+'px Figtree,system-ui,sans-serif';while(ctx.measureText(t).width>S*.9&&fs>S*.06){fs-=2;ctx.font='800 '+fs+'px Figtree,system-ui,sans-serif'}
+    ctx.textAlign='center';ctx.textBaseline=se.pos==='b'?'bottom':'top';const y=se.pos==='b'?S*.94:S*.06;ctx.lineJoin='round';ctx.lineWidth=fs*.18;ctx.strokeStyle='#000';ctx.strokeText(t,S/2,y);ctx.fillStyle='#fff';ctx.fillText(t,S/2,y)}}
+function seLoop(){if(!se||se.closed)return;if(se.isVid){const v=se.src;if(v.paused)v.play().catch(()=>{});if(v.currentTime>se.start+se.dur||v.currentTime<se.start-.3)v.currentTime=se.start}
+  if(!se.recording)seDraw($('stkCv').getContext('2d'),$('stkCv').width,true);requestAnimationFrame(seLoop)}
+const stage=$('stkStage');
+stage.addEventListener('wheel',e=>{e.preventDefault();if(se){se.zoom=Math.max(1,Math.min(4,se.zoom*(e.deltaY<0?1.08:1/1.08)));$('stkZoom').value=se.zoom}},{passive:false});
+stage.addEventListener('pointerdown',e=>{if(!se)return;try{stage.setPointerCapture(e.pointerId)}catch(_){}se.ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});se.pinch=0});
+stage.addEventListener('pointermove',e=>{if(!se||!se.ptrs.has(e.pointerId))return;const pv=se.ptrs.get(e.pointerId);se.ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});const W=stage.getBoundingClientRect().width||300;
+  if(se.ptrs.size===1){se.fx+=(e.clientX-pv.x)/W;se.fy+=(e.clientY-pv.y)/W}else if(se.ptrs.size===2){const [a,b]=[...se.ptrs.values()],d=Math.hypot(a.x-b.x,a.y-b.y);if(se.pinch){se.zoom=Math.max(1,Math.min(4,se.zoom*d/se.pinch));$('stkZoom').value=se.zoom}se.pinch=d}});
+const seUp=e=>{if(se){se.ptrs.delete(e.pointerId);se.pinch=0}};stage.addEventListener('pointerup',seUp);stage.addEventListener('pointercancel',seUp);
+$('stkImgIn').onchange=e=>{const f=e.target.files[0];e.target.value='';if(!f)return;const u=URL.createObjectURL(f),im=new Image();im.onload=()=>seOpen(im,false,u);im.onerror=()=>{URL.revokeObjectURL(u);flash('No se pudo abrir esa imagen')};im.src=u};
+$('stkVidIn').onchange=e=>{const f=e.target.files[0];e.target.value='';if(!f)return;const u=URL.createObjectURL(f),v=document.createElement('video');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.preload='auto';
+  v.onloadeddata=()=>seOpen(v,true,u);v.onerror=()=>{URL.revokeObjectURL(u);flash('No se pudo abrir ese video')};v.src=u;v.load()};
+async function seMakeStatic(){const c=document.createElement('canvas');c.width=c.height=512;seDraw(c.getContext('2d'),512,true);
+  let b=await new Promise(r=>c.toBlob(r,'image/webp',.9));if(!b||b.type!=='image/webp')b=await new Promise(r=>c.toBlob(r,'image/png'));return b}
+async function seMakeAnim(){if(!window.MediaRecorder||!HTMLCanvasElement.prototype.captureStream)throw new Error('Este navegador no puede crear stickers animados');
+  const S=384,c=document.createElement('canvas');c.width=c.height=S;const ctx=c.getContext('2d');const v=se.src;
+  const mime=['video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm','video/mp4'].find(t=>MediaRecorder.isTypeSupported(t))||'';
+  const rec=new MediaRecorder(c.captureStream(24),mime?{mimeType:mime,videoBitsPerSecond:900000}:{videoBitsPerSecond:900000});const chunks=[];rec.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};
+  se.recording=true;v.pause();v.currentTime=se.start;await new Promise(r=>{const done=()=>{v.removeEventListener('seeked',done);r()};v.addEventListener('seeked',done);setTimeout(r,1500)});
+  seDraw(ctx,S,false);rec.start(250);await v.play().catch(()=>{});const t0=performance.now();
+  await new Promise(res=>{const step=()=>{seDraw(ctx,S,false);if(performance.now()-t0<se.dur*1000&&v.currentTime<v.duration-.05)requestAnimationFrame(step);else res()};step()});
+  rec.stop();await new Promise(r=>rec.onstop=r);se.recording=false;const type=(rec.mimeType||mime||'video/webm').split(';')[0];return new Blob(chunks,{type})}
+async function seSave(andSend){if(!se)return;const btns=[$('stkSave'),$('stkSaveSend')];btns.forEach(b=>b.disabled=true);show(se.isVid?'Creando sticker animado…':'Creando sticker…');
+  try{const blob=se.isVid?await seMakeAnim():await seMakeStatic();if(!blob||!blob.size)throw new Error('vacío');
+    const ext=/mp4/.test(blob.type)?'mp4':/webm/.test(blob.type)?'webm':/webp/.test(blob.type)?'webp':'png';
+    const path=me+'/stk/'+Date.now()+'-'+Math.random().toString(36).slice(2,7)+'-'+(se.isVid?se.sh:'s')+'.'+ext;
+    const {error}=await sb.storage.from('media').upload(path,blob,{contentType:blob.type,upsert:false,cacheControl:'31536000'});if(error)throw error;
+    urlCache[path]={url:URL.createObjectURL(blob),exp:Date.now()+3e7};
+    await saveCouple({stickers:[...(couple.stickers||[]),{p:path}]});seClose();show('');if(andSend)await sendSticker(path);else{flash('Sticker guardado ✓');renderStk();$('ovStk').classList.add('on')}}
+  catch(e){show('');flash('No se pudo crear el sticker: '+(e.message||e),5000);if(se)se.recording=false}finally{btns.forEach(b=>b.disabled=false)}}
+$('stkSave').onclick=()=>seSave(false);$('stkSaveSend').onclick=()=>seSave(true);
+
+/* ---------- REACCIONES: más emojis ---------- */
+const EMO={'Frecuentes':'❤️😂😮😍🔥🥰😘😢😡👍👏🙏💯✨🎉','Caras':'😀😃😄😁😆🥹😅🤣😊😇🙂😉😌😋😛😜🤪😝🤗🤭🫢🤫🤔🫡🤨😐😑😶🙄😏😬😮‍💨🤤😴😪😷🤒🥵🥶🥴😵‍💫🤯🥳😎🤓🧐😕🫤😟🙁☹️😯😲😳🥺😦😧😨😰😥😭😱😖😣😞😓😩😫🥱😤😠🤬😈👿💀🤡👻👽🤖💩','Amor':'💋💌💘💝💖💗💓💞💕💟❣️💔❤️‍🔥❤️‍🩹🧡💛💚💙💜🤎🖤🤍🩷🩵💑💏👩‍❤️‍👨😻💐🌹🥀','Gestos':'👋🤚✋🖖👌🤌🤏✌️🤞🫰🤟🤘🤙👈👉👆👇☝️🫵👍👎✊👊🤛🤜👏🙌🫶👐🤲🤝🙏💪🫂','Varios':'🌟⭐🌙☀️🌈⚡🔥💧🌊🍀🌸🌺🌻🍕🍔🍟🍫🍰🎂🍷🍺☕🎁🎈🎊🎶🎵💤💢💥💫💦🏖️✈️🏠💍👑😺🐶🐱🐻🐼🦋'};
+let emoTarget=null;
+function openEmoji(id){emoTarget=id;const g=$('emoGrid');if(!g.childElementCount){for(const [cat,str] of Object.entries(EMO)){const h=document.createElement('div');h.className='emocat';h.textContent=cat;g.appendChild(h);
+  for(const e of [...new Intl.Segmenter('es',{granularity:'grapheme'}).segment(str)].map(x=>x.segment)){const b=document.createElement('button');b.textContent=e;b.onclick=()=>{const m=byId[emoTarget];$('ovEmoji').classList.remove('on');if(m)react(m,e)};g.appendChild(b)}}}
+  $('ovEmoji').classList.add('on')}
 
 /* ---------- LLAMADAS Y VIDEOLLAMADAS ----------
    Audio/video directo entre los dos celulares (WebRTC). La señal para conectarse viaja por Supabase
