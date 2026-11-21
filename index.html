@@ -431,7 +431,7 @@ input[type=file]{display:none}
   <div class="seg"><button class="sm pill alt" id="goReasons">💘 Razones</button><button class="sm pill alt" id="goGoals">🎯 Metas</button><button class="sm pill alt" id="goCoupons">🎟️ Cupones</button></div>
 
   <h4>Notificaciones</h4>
-  <button class="pill alt hidden" id="pLocation">Ubicación</button>
+  <button class="pill alt" id="pLocation">Ubicación</button>
   <button class="pill" id="pNotif">Activar notificaciones</button>
   <p id="pNotifSt"></p><p id="pInstall"></p>
 
@@ -1040,9 +1040,11 @@ const receivedLocationShare=()=>locationShares.find(s=>s.recipient===me);
 async function refreshLocation(){
   if(!me||document.hidden)return;
   const {data,error}=await sb.from('location_shares').select('recipient,sharer,state');
-  if(error)return;
+  if(error){
+    if(locationPanel.open)$('locationStatus').textContent='No se pudo cargar Ubicación. Cierra el apartado y vuelve a intentarlo.';
+    return;
+  }
   locationShares=data;
-  $('pLocation').classList.toggle('hidden',!data.length);
   const own=ownLocationShare();
   if(own?.state!=='pending')locationPrompted=null;
   if(own?.state==='pending'&&locationPrompted!==own.recipient&&!locationConsent.open){
@@ -1058,7 +1060,7 @@ async function renderLocation(){
   $('locationAsk').classList.toggle('hidden',share?.state!=='off');
   $('locationSettings').classList.toggle('hidden',ownLocationShare()?.state!=='active');
   const status=$('locationStatus'),places=$('locationPlaces');
-  status.textContent=share?.state==='pending'?'Solicitud pendiente.':'';
+  status.textContent=share?.state==='pending'?'Solicitud pendiente.':locationShares.length?'':'Esta cuenta no tiene una pareja vinculada para compartir ubicación.';
   places.replaceChildren();
   if(share?.state!=='active')return;
   const {data,error}=await sb.from('location_points').select('latitude,longitude,created_at')
@@ -1108,7 +1110,12 @@ async function updateLocationOnBuzz(sender){
   finally{locationUpdating=false}
 }
 
-$('pLocation').onclick=()=>{panel.classList.remove('on');locationPanel.showModal();refreshLocation()};
+$('pLocation').onclick=()=>{
+  panel.classList.remove('on');
+  $('locationStatus').textContent='Cargando ubicación…';
+  locationPanel.showModal();
+  refreshLocation();
+};
 $('locationAsk').onclick=async()=>{
   const share=receivedLocationShare();
   if(share?.state!=='off')return;
