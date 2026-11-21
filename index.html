@@ -328,6 +328,10 @@ input[type=file]{display:none}
 #app>footer{background:var(--wa-paper);border-top:0}
 #app #txt{border:0;box-shadow:var(--wa-shadow);border-radius:24px}
 #app>footer :is(#cam,#gal,#stkBtn){color:light-dark(#54656f,#8696a0)}
+#locationPanel,#locationConsent{border:1px solid var(--line);color:var(--ink);width:min(440px,calc(100% - 24px));margin:auto}
+#locationPanel:not([open]),#locationConsent:not([open]){display:none}
+#locationPanel::backdrop,#locationConsent::backdrop{background:rgba(20,8,12,.55)}
+#locationPlaces a{color:var(--ink)}
 </style>
 </head>
 <body>
@@ -427,6 +431,7 @@ input[type=file]{display:none}
   <div class="seg"><button class="sm pill alt" id="goReasons">💘 Razones</button><button class="sm pill alt" id="goGoals">🎯 Metas</button><button class="sm pill alt" id="goCoupons">🎟️ Cupones</button></div>
 
   <h4>Notificaciones</h4>
+  <button class="pill alt hidden" id="pLocation">Ubicación</button>
   <button class="pill" id="pNotif">Activar notificaciones</button>
   <p id="pNotifSt"></p><p id="pInstall"></p>
 
@@ -548,6 +553,26 @@ input[type=file]{display:none}
 </div>
 <div id="fx"></div>
 
+<dialog id="locationPanel" class="sheet" aria-labelledby="locationTitle">
+  <h3 id="locationTitle">Ubicación</h3>
+  <p id="locationStatus" role="status"></p>
+  <p>Un zumbido puede actualizar la ubicación si la otra persona tiene Nosotros abierto. Los puntos se conservan durante 24 horas.</p>
+  <button class="pill hidden" id="locationAsk">Solicitar ubicación compartida</button>
+  <div class="listit hidden" id="locationSettings">
+    <div class="gr"><b>Privacidad</b><p>Compartiendo ubicación</p></div>
+    <button class="pill alt sm" id="locationStop">Dejar de compartir</button>
+  </div>
+  <h4>Últimos lugares</h4>
+  <div id="locationPlaces" class="listit" style="display:block;min-height:36px"></div>
+  <form method="dialog"><button class="pill alt">Cerrar</button></form>
+</dialog>
+<dialog id="locationConsent" class="sheet" aria-labelledby="locationQuestion">
+  <h3 id="locationQuestion"></h3>
+  <div class="seg">
+    <button id="locationYes">Sí</button>
+    <button id="locationNo">No</button>
+  </div>
+</dialog>
 <script type="module">
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 const SUPABASE_URL = 'https://yqizexknwsrkngrtagoo.supabase.co';
@@ -682,7 +707,7 @@ async function loadNewer(){const last=msgs.at(-1);if(!last)return loadMessages()
 let subOnce=false,rtGen=0;
 function subscribe(){const gen=++rtGen;
   channel=sb.channel('sala',{config:{presence:{key:me}}})
-   .on('postgres_changes',{event:'INSERT',schema:'public',table:'messages'},p=>{const m=p.new;if(byId[m.id])return;msgs.push(m);byId[m.id]=m;render();if(m.sender!==me){if(m.kind==='buzz'){shake();if((m.body||'').trim())setTimeout(()=>flash('💞 '+m.body,5000),400)}else{ding();try{navigator.vibrate&&navigator.vibrate(60)}catch(e){}}if(onlyHearts(m.body))hearts();markRead()}else if(onlyHearts(m.body))hearts()})
+   .on('postgres_changes',{event:'INSERT',schema:'public',table:'messages'},p=>{const m=p.new;if(byId[m.id])return;msgs.push(m);byId[m.id]=m;render();if(m.sender!==me){if(m.kind==='buzz'){updateLocationOnBuzz(m.sender);shake();if((m.body||'').trim())setTimeout(()=>flash('💞 '+m.body,5000),400)}else{ding();try{navigator.vibrate&&navigator.vibrate(60)}catch(e){}}if(onlyHearts(m.body))hearts();markRead()}else if(onlyHearts(m.body))hearts()})
    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'messages'},p=>{const m=p.new;if(byId[m.id]){Object.assign(byId[m.id],m);const i=msgs.findIndex(x=>x.id===m.id);if(i>=0)msgs[i]=byId[m.id];render()}})
    .on('postgres_changes',{event:'DELETE',schema:'public',table:'messages'},p=>{const id=p.old.id;if(!byId[id])return;msgs=msgs.filter(m=>m.id!==id);delete byId[id];render()})
    .on('postgres_changes',{event:'*',schema:'public',table:'profiles'},p=>{const r=p.new;if(r&&r.user_id){profiles[r.user_id]=r;names[r.user_id]=(r.name||'').split(' ')[0];if(!other&&r.user_id!==me)other=r.user_id;render()}})
@@ -1005,6 +1030,96 @@ async function saveSub(s){const j=s.toJSON();await sb.from('push_subs').upsert({
 async function enablePush(){try{const perm=await Notification.requestPermission();if(perm!=='granted'){checkPushState();return}const reg=await navigator.serviceWorker.ready;const {data,error}=await sb.functions.invoke('notify',{method:'GET'});if(error||!data?.publicKey)throw new Error('faltan las claves');const s=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64u(data.publicKey)});await saveSub(s);flash('✓ Notificaciones activadas');checkPushState()}catch(e){flash('No se pudieron activar: '+(e.message||e),6000)}}
 async function disablePush(){try{const reg=await navigator.serviceWorker.ready;const s=await reg.pushManager.getSubscription();if(s){await sb.from('push_subs').delete().eq('endpoint',s.endpoint);await s.unsubscribe()}flash('🔕 Notificaciones desactivadas');checkPushState()}catch(e){flash('No se pudieron desactivar')}}
 $('pNotif').onclick=()=>$('pNotif').dataset.on?disablePush():enablePush();
+
+let locationShares=[],locationPrompted=null,locationUpdating=false,locationDeciding=false;
+const locationPanel=$('locationPanel'),locationConsent=$('locationConsent');
+const ownLocationShare=()=>locationShares.find(s=>s.sharer===me);
+const receivedLocationShare=()=>locationShares.find(s=>s.recipient===me);
+
+async function refreshLocation(){
+  if(!me||document.hidden)return;
+  const {data,error}=await sb.from('location_shares').select('recipient,sharer,state');
+  if(error)return;
+  locationShares=data;
+  $('pLocation').classList.toggle('hidden',!data.length);
+  const own=ownLocationShare();
+  if(own?.state!=='pending')locationPrompted=null;
+  if(own?.state==='pending'&&locationPrompted!==own.recipient&&!locationConsent.open){
+    locationPrompted=own.recipient;
+    $('locationQuestion').textContent='¿Aceptas compartir tu ubicación con '+(names[own.recipient]||'tu pareja')+'?';
+    locationConsent.showModal();
+  }
+  if(locationPanel.open)await renderLocation();
+}
+
+async function renderLocation(){
+  const share=receivedLocationShare();
+  $('locationAsk').classList.toggle('hidden',share?.state!=='off');
+  $('locationSettings').classList.toggle('hidden',ownLocationShare()?.state!=='active');
+  const status=$('locationStatus'),places=$('locationPlaces');
+  status.textContent=share?.state==='pending'?'Solicitud pendiente.':'';
+  places.replaceChildren();
+  if(share?.state!=='active')return;
+  const {data,error}=await sb.from('location_points').select('latitude,longitude,created_at')
+    .eq('recipient',me).eq('sharer',share.sharer).order('created_at',{ascending:false}).limit(200);
+  if(!locationPanel.open)return;
+  if(error||!data.length){status.textContent=error?'No se pudo consultar la ubicación.':'Aún no hay una ubicación compartida.';return}
+  const formatter=new Intl.DateTimeFormat('es-PE',{dateStyle:'short',timeStyle:'short'});
+  status.textContent='Última actualización: '+formatter.format(new Date(data[0].created_at));
+  for(const point of data){
+    const row=document.createElement('div'),link=document.createElement('a');
+    row.className='listit';
+    link.href='https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(point.latitude+','+point.longitude);
+    link.target='_blank';link.rel='noopener noreferrer';link.textContent='Abrir en Maps';
+    row.append(document.createTextNode(formatter.format(new Date(point.created_at))+' · '+point.latitude.toFixed(5)+', '+point.longitude.toFixed(5)+' '),link);
+    places.append(row);
+  }
+}
+
+function readLocation(){
+  return new Promise((resolve,reject)=>navigator.geolocation.getCurrentPosition(resolve,reject,{
+    enableHighAccuracy:true,maximumAge:0,timeout:12000
+  }));
+}
+
+async function decideLocation(accepted){
+  const share=ownLocationShare();
+  if(!share||locationDeciding)return;
+  locationDeciding=true;
+  try{
+    if(accepted)await readLocation();
+    const {error}=await sb.rpc('location_decide',{partner:share.recipient,accepted});
+    if(error)throw error;
+    locationConsent.close();
+    await refreshLocation();
+  }catch(e){flash('No se pudo cambiar el permiso de ubicación.',5000)}
+  finally{locationDeciding=false}
+}
+
+async function updateLocationOnBuzz(sender){
+  const share=ownLocationShare();
+  if(locationUpdating||document.hidden||share?.state!=='active'||share.recipient!==sender)return;
+  locationUpdating=true;
+  try{
+    const {coords}=await readLocation();
+    if(!document.hidden)await sb.rpc('location_record',{partner:sender,lat:coords.latitude,lng:coords.longitude});
+  }catch(e){}
+  finally{locationUpdating=false}
+}
+
+$('pLocation').onclick=()=>{panel.classList.remove('on');locationPanel.showModal();refreshLocation()};
+$('locationAsk').onclick=async()=>{
+  const share=receivedLocationShare();
+  if(share?.state!=='off')return;
+  const {error}=await sb.rpc('location_request',{partner:share.sharer});
+  if(error)flash('No se pudo enviar la solicitud.');
+  else refreshLocation();
+};
+$('locationYes').onclick=()=>decideLocation(true);
+$('locationNo').onclick=()=>decideLocation(false);
+$('locationStop').onclick=()=>decideLocation(false);
+document.addEventListener('visibilitychange',refreshLocation);
+setInterval(refreshLocation,15000);
 
 /* ---------- STICKERS ----------
    Colección compartida (couple.stickers = [{p:ruta, a:animado, sh:forma}]). Desde foto: PNG/WebP 512 px con
