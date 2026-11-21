@@ -179,7 +179,7 @@ input[type=file]{display:none}
 #callUI{position:fixed;inset:0;z-index:60;background:#0d0a0c;color:#fff;display:none;flex-direction:column}
 #callUI.on{display:flex}
 #rv{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#0d0a0c}
-#lv{touch-action:none;cursor:grab;position:absolute;right:14px;top:calc(14px + env(safe-area-inset-top));width:30vw;max-width:150px;max-height:34vh;aspect-ratio:3/4;object-fit:contain;border-radius:14px;border:2px solid rgba(255,255,255,.7);background:#222;z-index:2;transform:scaleX(-1)}
+#lv{touch-action:none;cursor:grab;position:absolute;right:14px;top:calc(14px + env(safe-area-inset-top));width:30vw;max-width:150px;max-height:34vh;aspect-ratio:3/4;object-fit:cover;border-radius:14px;border:2px solid rgba(255,255,255,.7);background:#222;z-index:2;transform:scaleX(-1)}
 #lv.back{transform:none}
 #callUI.audio #rv,#callUI.audio #lv,#callUI.waiting #rv{visibility:hidden}
 .cinfo{position:relative;z-index:1;margin-top:calc(70px + env(safe-area-inset-top));text-align:center;display:flex;flex-direction:column;align-items:center;gap:6px;text-shadow:0 1px 4px rgba(0,0,0,.6)}
