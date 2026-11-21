@@ -899,6 +899,43 @@ setInterval(()=>{if(!online[other])status()},60000);
 let lastDelivSent=0;
 async function markDelivered(){if(!me)return;const last=msgs.filter(m=>m.sender!==me).at(-1);if(!last)return;const t=new Date(last.created_at).getTime();if(t<=lastDelivSent)return;lastDelivSent=t;try{await sb.from('profiles').update({last_delivered:last.created_at}).eq('user_id',me)}catch(e){lastDelivSent=0}}
 async function markRead(){markDelivered();if(document.hidden||!me)return;const last=msgs.filter(m=>m.sender!==me).at(-1);if(!last)return;const t=new Date(last.created_at).getTime();if(t<=lastReadSent)return;lastReadSent=t;await sb.from('profiles').update({last_read:last.created_at}).eq('user_id',me)}
+let editReadTimer=null,editReadBusy=false;
+function scheduleEditedReads(){
+  if(editReadTimer!==null)return;
+  editReadTimer=setTimeout(()=>{
+    editReadTimer=null;
+    markVisibleEdits();
+  },350);
+}
+async function markVisibleEdits(){
+  if(editReadBusy||!me||document.hidden||!navigator.onLine||
+    document.querySelector('.ov.on,dialog[open],#hot.on,#callUI.on:not(.mini)'))return;
+  const bounds=list.getBoundingClientRect(),versions=[];
+  for(const m of msgs){
+    if(!m.edited_at||m.edited_read_at===m.edited_at||m.sender===me||hidden.has(m.id))continue;
+    const bubble=nodeCache.get(m.id)?.el;
+    if(!bubble?.isConnected)continue;
+    const rect=bubble.getBoundingClientRect();
+    if(rect.height>0&&rect.bottom>bounds.top&&rect.top<bounds.bottom){
+      versions.push({id:String(m.id),edited_at:m.edited_at});
+    }
+  }
+  if(!versions.length)return;
+  editReadBusy=true;
+  try{
+    const {data,error}=await sb.rpc('ack_chat_edits',{versions:versions.slice(0,50)});
+    if(error)return;
+    for(const receipt of data||[]){
+      const m=byId[receipt.id];
+      if(m?.edited_at===receipt.edited_read_at)m.edited_read_at=receipt.edited_read_at;
+    }
+    if(data?.length)render();
+  }catch(e){}
+  finally{editReadBusy=false}
+}
+list.addEventListener('scroll',scheduleEditedReads,{passive:true});
+document.addEventListener('visibilitychange',scheduleEditedReads);
+document.addEventListener('click',scheduleEditedReads);
 
 /* ---------- media ---------- */
 /* Enlaces firmados: se piden en lote (una sola consulta para muchas fotos), se reutilizan y se guardan
@@ -973,7 +1010,10 @@ function imgInto(b,m){const ph=document.createElement('div');ph.className='ph';i
    Ahora cada mensaje se guarda ya armado y solo se rehace el que cambió; el resto se queda tal cual. */
 const nodeCache=new Map();let usedKeys=new Set();
 function keyed(key,sig,build){usedKeys.add(key);const c=nodeCache.get(key);if(c&&c.sig===sig)return c.el;const el=build();nodeCache.set(key,{sig,el});return el}
-function msgSig(m){const r=m.reply_to?byId[m.reply_to]:null;return JSON.stringify([m.kind,m.body,m.edited_at,m.media_path,m.width,m.height,m.duration,!!m.fav,m.reactions||null,m.sender===me,m.reply_to||null,r?[who(r.sender),snip(r)]:0])}
+const editableUntil=m=>Date.parse(m.created_at)+600000;
+const canEditMessage=m=>m.sender===me&&m.kind==='text'&&!m.edited_at&&Date.now()<editableUntil(m);
+let editExpiryTimer=null;
+function msgSig(m){const r=m.reply_to?byId[m.reply_to]:null;return JSON.stringify([m.kind,m.body,m.edited_at,m.media_path,m.width,m.height,m.duration,!!m.fav,m.reactions||null,m.sender===me,canEditMessage(m),m.reply_to||null,r?[who(r.sender),snip(r)]:0])}
 function buildMsg(m){
   const id=m.id,cur=()=>byId[id]||m,mine=m.sender===me;
   const b=document.createElement('div');b.className='m'+(mine?' me':'');b.dataset.id=id;
@@ -990,7 +1030,7 @@ function buildMsg(m){
   {const br=document.createElement('i');br.className='br';acts.appendChild(br)}
   const fb=document.createElement('button');fb.className='tb';fb.textContent=m.fav?'★':'☆';fb.onclick=ev=>{ev.stopPropagation();toggleFav(cur())};acts.appendChild(fb);
   const rb=document.createElement('button');rb.className='tb';rb.textContent='Responder';rb.onclick=ev=>{ev.stopPropagation();startReply(cur())};acts.appendChild(rb);
-  if(mine&&m.kind==='text'){
+  if(canEditMessage(m)){
     const edit=document.createElement('button');edit.className='tb';edit.textContent='Editar';
     edit.onclick=ev=>{ev.stopPropagation();openEditMessage(cur())};acts.appendChild(edit);
   }
@@ -1008,7 +1048,7 @@ function render(){
   if(!qdismiss&&msgs.length)nodes.push(keyed('card:q',q,()=>{const c=document.createElement('div');c.className='card';c.innerHTML='<button class="x">✕</button><div class="cap">Pregunta del día 💭</div><div class="big"></div>';c.querySelector('.big').textContent=q;c.querySelector('.x').onclick=()=>{try{localStorage.setItem('q'+dayNum(),'1')}catch(e){}c.remove()};c.querySelector('.big').onclick=()=>{txt.value='Pregunta del día: '+q+'\n';txt.focus();grow()};return c}));
   if(couple.reasons&&couple.reasons.length){const r=couple.reasons[dayNum()%couple.reasons.length];nodes.push(keyed('card:rz',r,()=>{const c=document.createElement('div');c.className='card';c.innerHTML='<div class="cap">Hoy te amo porque 💘</div><div class="big"></div>';c.querySelector('.big').textContent=r;return c}))}
   if(!msgs.length)nodes.push(keyed('empty','',()=>{const e=document.createElement('div');e.className='empty';e.textContent='Aún no hay mensajes. ¡Escribe el primero! ❤️';return e}));
-  let lastDay='',lastMine=null;
+  let lastDay='',lastMine=null,nextEditExpiry=Infinity;
   const op=other&&profiles[other]||{},tsOf=x=>x?new Date(x).getTime():0,oRead=tsOf(op.last_read),oDeliv=Math.max(oRead,tsOf(op.last_delivered));
   for(const m of msgs){
     if(hidden.has(m.id))continue;
@@ -1018,16 +1058,30 @@ function render(){
     if(m.kind==='call'){const tx=(m.sender===me?'↗ ':'↙ ')+String(m.body||'📞 Llamada')+' · '+hm(m.created_at);nodes.push(keyed(m.id,tx,()=>{const z=document.createElement('div');z.className='bz call';z.textContent=tx;z.title='Toca para llamar';z.onclick=()=>startCall(/🎥/.test(m.body||''));return z}));continue}
     if(m.kind==='buzz'){const tx='⚡ '+(m.sender===me?'Enviaste un zumbido':who(m.sender)+' te envió un zumbido')+((m.body||'').trim()?' — '+m.body:'')+' · '+hm(m.created_at);nodes.push(keyed(m.id,tx,()=>{const z=document.createElement('div');z.className='bz';z.textContent=tx;return z}));continue}
     if(m.sender===me)lastMine=m;
+    if(canEditMessage(m))nextEditExpiry=Math.min(nextEditExpiry,editableUntil(m));
     const el=keyed(m.id,msgSig(m),()=>buildMsg(m));el.classList.toggle('sel',m.id===selId);nodes.push(el);
     if(m.kind==='voice'){const v=el.querySelector('.vz');if(v)v.classList.toggle('heard',!!m.heard_at)}
-    if(m.sender===me){const tk=el.querySelector('.tk');if(tk){const ts=new Date(m.created_at).getTime();const st=ts<=oRead?'r':ts<=oDeliv?'d':'s';if(tk.dataset.st!==st){tk.dataset.st=st;tk.textContent=st==='s'?'✓':'✓✓';tk.classList.toggle('r',st==='r');tk.title=st==='r'?'Leído':st==='d'?'Entregado':'Enviado'}}}
+    if(m.sender===me){
+      const tk=el.querySelector('.tk');
+      if(tk){
+        const sent=tsOf(m.created_at);
+        const read=m.edited_at?m.edited_read_at===m.edited_at:sent<=oRead;
+        const st=read?'r':sent<=oDeliv?'d':'s';
+        if(tk.dataset.st!==st){
+          tk.dataset.st=st;tk.textContent=st==='s'?'✓':'✓✓';
+          tk.classList.toggle('r',st==='r');tk.title=st==='r'?'Leído':st==='d'?'Entregado':'Enviado';
+        }
+      }
+    }
   }
   /* aplica solo las diferencias en pantalla */
   const want=new Set(nodes);
   for(const el of [...wrap.children])if(!want.has(el))el.remove();
   let c=wrap.firstChild;for(const n of nodes){if(n===c){c=c.nextSibling;continue}wrap.insertBefore(n,c)}
   for(const k of nodeCache.keys())if(!usedKeys.has(k))nodeCache.delete(k);
-  if(near)list.scrollTop=list.scrollHeight;first=false;noteCleanup();
+  clearTimeout(editExpiryTimer);
+  if(Number.isFinite(nextEditExpiry))editExpiryTimer=setTimeout(render,Math.max(1,nextEditExpiry-Date.now()+1));
+  if(near)list.scrollTop=list.scrollHeight;first=false;noteCleanup();scheduleEditedReads();
 }
 function jumpTo(id){const el=wrap.querySelector('[data-id="'+id+'"]');if(!el)return;el.scrollIntoView({block:'center',behavior:'smooth'});el.classList.add('flash');setTimeout(()=>el.classList.remove('flash'),1200)}
 function swipe(b,getM){let x0=0,y0=0,dx=0,on=false;b.addEventListener('touchstart',e=>{const t=e.touches[0];x0=t.clientX;y0=t.clientY;dx=0;on=true},{passive:true});b.addEventListener('touchmove',e=>{if(!on)return;const t=e.touches[0],mx=t.clientX-x0,my=t.clientY-y0;if(Math.abs(my)>Math.abs(mx)&&Math.abs(my)>10){on=false;b.style.transform='';return}if(mx>0){dx=Math.min(80,mx);b.classList.add('swiping');b.style.transform='translateX('+dx+'px)'}},{passive:true});b.addEventListener('touchend',()=>{b.classList.remove('swiping');b.style.transform='';if(on&&dx>55)startReply(getM());on=false})}
@@ -1070,6 +1124,7 @@ async function sendText(){
 const editDialog=$('editMessage'),editText=$('editMessageText');
 let editingMessage=null;
 function openEditMessage(message){
+  if(!canEditMessage(message))return;
   editingMessage=message;
   editText.value=message.body||'';
   $('editMessageStatus').textContent='';
@@ -1082,12 +1137,20 @@ $('editMessageForm').onsubmit=async event=>{
   const message=editingMessage,body=editText.value.trim(),save=$('editMessageSave');
   const status=$('editMessageStatus');
   if(!message||!body||save.disabled)return;
+  if(!canEditMessage(byId[message.id]||message)){
+    status.textContent='Se acabó el plazo de 10 minutos o este mensaje ya se editó.';
+    return;
+  }
   if(body===message.body){editDialog.close();return}
   if(!navigator.onLine){status.textContent='Sin conexión. Vuelve a intentarlo cuando tengas internet.';return}
   save.disabled=true;
   try{
     const {data,error}=await sb.rpc('edit_own_chat_message',{message_id:String(message.id),new_body:body});
-    if(error||!data)throw new Error('No se pudo guardar el cambio.');
+    if(error)throw error;
+    if(!data){
+      status.textContent='Se acabó el plazo de 10 minutos o este mensaje ya se editó.';
+      return;
+    }
     if(byId[message.id]){
       Object.assign(byId[message.id],data);
       render();
