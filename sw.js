@@ -44,6 +44,13 @@ self.addEventListener('push', e => {
   e.waitUntil((async () => {
     let body = d.body || 'Nuevo mensaje', tag = d.tag || 'chat', count = 0;
     // Llamada entrante: aviso insistente para contestar
+    if (!buzz && /^(📞|🎥)/.test(d.body || '') && !/^(📞 Llamada|🎥 Videollamada)$/.test((d.body || '').trim())) {
+      // la llamada ya terminó (perdida, cancelada, rechazada): reemplaza el aviso de "te está llamando"
+      await reg.showNotification('📞 Llamada perdida de ' + (d.title || 'tu pareja'), {
+        body: /🎥/.test(d.body) ? 'Videollamada perdida' : 'Llamada perdida', icon: 'icon-192.png', badge: 'icon-192.png', tag: 'call', renotify: false, data: { url: reg.scope }
+      });
+      return;
+    }
     if (!buzz && /^(📞|🎥)/.test(d.body || '')) {
       await reg.showNotification((d.title || 'Tu pareja') + (/^🎥/.test(d.body) ? ' te está haciendo una videollamada' : ' te está llamando'), {
         body: 'Toca para contestar', icon: 'icon-192.png', badge: 'icon-192.png', tag: 'call', renotify: true,

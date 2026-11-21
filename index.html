@@ -643,7 +643,9 @@ async function react(m,e){const rx={...(m.reactions||{})};if(rx[me]===e)delete r
 async function toggleFav(m){m.fav=!m.fav;selId=null;render();try{await sb.from('messages').update({fav:m.fav}).eq('id',m.id)}catch(e){flash('No se pudo guardar')}}
 
 /* ---------- enviar ---------- */
-async function post(row){const rp=replying;const {data,error}=await sb.from('messages').insert({...row,reply_to:rp?rp.id:null}).select().single();if(error){flash('No se pudo enviar: '+error.message,5000);throw error}if(!byId[data.id]){msgs.push(data);byId[data.id]=data}if(replying===rp)stopReply();if(onlyHearts(row.body))hearts();render();if(row.kind==='buzz'||!(other&&online[other]))sb.functions.invoke('notify',{body:{message_id:data.id}}).catch(()=>{});return data}
+async function post(row){const rp=replying;const {data,error}=await sb.from('messages').insert({...row,reply_to:rp?rp.id:null}).select().single();if(error){flash('No se pudo enviar: '+error.message,5000);throw error}if(!byId[data.id]){msgs.push(data);byId[data.id]=data}if(replying===rp)stopReply();if(onlyHearts(row.body))hearts();render();if(row.kind==='buzz'||!(other&&online[other]))sb.functions.invoke('notify',{body:{message_id:data.id}}).catch(()=>{});
+  if(row.kind==='buzz'&&!(other&&online[other]))[3000,6000].forEach(t=>setTimeout(()=>{if(!(other&&online[other]))sb.functions.invoke('notify',{body:{message_id:data.id}}).catch(()=>{})},t));
+  return data}
 function grow(){txt.style.height='auto';txt.style.height=Math.min(txt.scrollHeight,140)+'px';const has=!!txt.value.trim();$('send').classList.toggle('hidden',!has);$('mic').classList.toggle('hidden',has)}
 let typT=null,typOn=false;
 function typing(v){if(!channel)return;clearTimeout(typT);if(v)typT=setTimeout(()=>typing(false),4000);if(v!==typOn){typOn=v;channel.track({active:true,typing:v}).catch(()=>{})}}
@@ -951,7 +953,7 @@ async function startCall(video){if(call){flash('Ya hay una llamada en curso');re
   let stream;try{stream=await getMedia(video)}catch(e){flash(video?'Necesito permiso de cámara y micrófono.':'Necesito permiso del micrófono.',5000);return}
   call={cid:Date.now().toString(36)+Math.random().toString(36).slice(2,6),video,role:'out',stream,iceQ:[],facing:'user',t0:0};
   showCallUI(video,false);cState('waiting','Llamando…');$('lv').srcObject=stream;$('lv').classList.remove('back');startRing('out');
-  try{const {data}=await sb.from('messages').insert({kind:'call',body:video?'🎥 Videollamada':'📞 Llamada'}).select().single();if(data&&call){call.msgId=data.id;if(!byId[data.id]){msgs.push(data);byId[data.id]=data;render()}sb.functions.invoke('notify',{body:{message_id:data.id}}).catch(()=>{})}}catch(e){}
+  try{const {data}=await sb.from('messages').insert({kind:'call',body:video?'🎥 Videollamada':'📞 Llamada'}).select().single();if(data&&call){call.msgId=data.id;if(!byId[data.id]){msgs.push(data);byId[data.id]=data;render()}const ping=()=>sb.functions.invoke('notify',{body:{message_id:data.id}}).catch(()=>{});ping();const c0=call;c0.pushIv=setInterval(()=>{if(call!==c0||c0.accepted||(other&&online[other])){clearInterval(c0.pushIv);return}ping()},4000)}}catch(e){}
   const ring=()=>sig('ring',{video});ring();ringIv=setInterval(ring,2000);
   call.noAns=setTimeout(()=>{if(call&&!call.accepted){sig('hangup');endCall('No contestó',true,'perdida')}},45000)}
 /* --- señales --- */
@@ -964,7 +966,7 @@ async function onSig(p){if(!p||p.from===me)return;
   if(p.type==='busy'){endCall('Está en otra llamada',true,'no contestada');return}
   if(p.type==='reject'){endCall('Rechazó la llamada',true,'rechazada');return}
   if(p.type==='hangup'){endCall(call.t0?'Llamada terminada':'Llamada cancelada',call.role==='out',null);return}
-  if(p.type==='accept'&&call.role==='out'&&!call.accepted){call.accepted=true;clearInterval(ringIv);clearTimeout(call.noAns);stopRing();cState('waiting','Conectando…');
+  if(p.type==='accept'&&call.role==='out'&&!call.accepted){call.accepted=true;clearInterval(ringIv);clearInterval(call.pushIv);clearTimeout(call.noAns);stopRing();cState('waiting','Conectando…');
     call.pc=await makePC();const off=await call.pc.createOffer();await call.pc.setLocalDescription(off);sig('sdp',{desc:call.pc.localDescription.toJSON()});return}
   if(p.type==='sdp'){const pc=call.pc;if(!pc)return;await pc.setRemoteDescription(p.desc);if(p.desc.type==='offer'){const ans=await pc.createAnswer();await pc.setLocalDescription(ans);sig('sdp',{desc:pc.localDescription.toJSON()})}flushIce();return}
   if(p.type==='ice'){call.iceQ.push(p.cand);flushIce();return}}
@@ -978,10 +980,10 @@ $('cMute').onclick=()=>{if(!call||!call.stream)return;const t=call.stream.getAud
 $('cCam').onclick=()=>{if(!call||!call.stream)return;const t=call.stream.getVideoTracks()[0];if(!t)return;t.enabled=!t.enabled;$('cCam').classList.toggle('off',!t.enabled)};
 $('cFlip').onclick=async()=>{if(!call||!call.stream||!call.video)return;const facing=call.facing==='user'?'environment':'user';try{const ns=await navigator.mediaDevices.getUserMedia({video:{facingMode:facing}});const nt=ns.getVideoTracks()[0];const old=call.stream.getVideoTracks()[0];const snd=call.pc&&call.pc.getSenders().find(s=>s.track&&s.track.kind==='video');if(snd)await snd.replaceTrack(nt);if(old){call.stream.removeTrack(old);old.stop()}call.stream.addTrack(nt);call.facing=facing;$('lv').srcObject=call.stream;$('lv').classList.toggle('back',facing!=='user')}catch(e){flash('No se pudo cambiar de cámara')}};
 /* --- terminar --- */
-async function endCall(text,logIt,outcome){const c=call;if(!c)return;call=null;clearInterval(ringIv);clearTimeout(c.noAns);clearInterval(c.watch);clearInterval(c.timer);stopRing();
+async function endCall(text,logIt,outcome){const c=call;if(!c)return;call=null;clearInterval(c.pushIv);clearInterval(ringIv);clearTimeout(c.noAns);clearInterval(c.watch);clearInterval(c.timer);stopRing();
   try{c.pc&&c.pc.close()}catch(e){}try{c.stream&&c.stream.getTracks().forEach(t=>t.stop())}catch(e){}
   $('rv').srcObject=null;$('lv').srcObject=null;if(text){cState(null,text);setTimeout(()=>{if(!call)cui.classList.remove('on')},1400)}else cui.classList.remove('on');
-  if(c.role==='out'&&c.msgId&&logIt!==false){const base=c.video?'🎥 Videollamada':'📞 Llamada';const body=c.t0?base+' · '+mmss((Date.now()-c.t0)/1000):base+' '+(outcome||'no contestada');try{await sb.from('messages').update({body}).eq('id',c.msgId)}catch(e){}if(byId[c.msgId]){byId[c.msgId].body=body;render()}}}
+  if(c.role==='out'&&c.msgId&&logIt!==false){const base=c.video?'🎥 Videollamada':'📞 Llamada';const body=c.t0?base+' · '+mmss((Date.now()-c.t0)/1000):base+' '+(outcome||'no contestada');try{await sb.from('messages').update({body}).eq('id',c.msgId);if(!c.t0&&!(other&&online[other]))sb.functions.invoke('notify',{body:{message_id:c.msgId}}).catch(()=>{})}catch(e){}if(byId[c.msgId]){byId[c.msgId].body=body;render()}}}
 $('callA').onclick=()=>startCall(false);$('callV').onclick=()=>startCall(true);
 addEventListener('pagehide',()=>{if(call){sig('hangup');}});
 
