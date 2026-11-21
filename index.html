@@ -1033,8 +1033,7 @@ async function endCall(text,logIt,outcome){const c=call;if(!c)return;call=null;i
   if(c.role==='out'&&c.msgId&&logIt!==false){const base=c.video?'🎥 Videollamada':'📞 Llamada';const body=c.t0?base+' · '+mmss((Date.now()-c.t0)/1000):base+' '+(outcome||'no contestada');try{await sb.from('messages').update({body}).eq('id',c.msgId);if(!c.t0&&!(other&&online[other]))sb.functions.invoke('notify',{body:{message_id:c.msgId}}).catch(()=>{})}catch(e){}if(byId[c.msgId]){byId[c.msgId].body=body;render()}}}
 $('callA').onclick=()=>startCall(false);$('callV').onclick=()=>startCall(true);
 addEventListener('pagehide',event=>{
-  if(!call||event.persisted)return;
-  if(call.t0&&call.video&&(inPip()||cui.classList.contains('mini')))return;
+  if(!call||call.t0||event.persisted)return;
   sig('hangup');
 });
 addEventListener('pageshow',()=>{
