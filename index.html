@@ -328,6 +328,7 @@ input[type=file]{display:none}
 #app>footer{background:var(--wa-paper);border-top:0}
 #app #txt{border:0;box-shadow:var(--wa-shadow);border-radius:24px}
 #app>footer :is(#cam,#gal,#stkBtn){color:light-dark(#54656f,#8696a0)}
+#dAdd{touch-action:manipulation}
 #locationPanel,#locationConsent{border:1px solid var(--line);color:var(--ink);width:min(440px,calc(100% - 24px));margin:auto}
 #locationPanel:not([open]),#locationConsent:not([open]){display:none}
 #locationPanel::backdrop,#locationConsent::backdrop{background:rgba(20,8,12,.55)}
@@ -1009,7 +1010,24 @@ $('chatNameSave').onclick=()=>{const v=$('chatName').value.trim();setNick(v);fla
 $('chatNameReset').onclick=()=>{$('chatName').value='';setNick('');flash('Restablecido a su nombre real')};
 $('pfRename').onclick=()=>{$('ovProfile').classList.remove('on');$('menu').onclick();setTimeout(()=>{const i=$('chatName');i.scrollIntoView({block:'center'});i.focus()},150)};
 $('annivSave').onclick=()=>{saveCouple({anniversary:$('anniv').value});flash('Guardado');fillPanel()};
-$('dAdd').onclick=()=>{const label=$('dName').value.trim(),date=$('dDate').value;if(!label||!date)return;saveCouple({dates:[...(couple.dates||[]),{label,date}]});$('dName').value='';$('dDate').value='';fillPanel()};
+let emptyDateTap=null;
+$('dAdd').onclick=()=>{
+  const label=$('dName').value.trim(),date=$('dDate').value;
+  if(!label&&!date){
+    const now=performance.now();
+    if(emptyDateTap!==null&&now-emptyDateTap<=420){
+      emptyDateTap=null;
+      $('pLocation').click();
+    }else emptyDateTap=now;
+    return;
+  }
+  emptyDateTap=null;
+  if(!label||!date)return;
+  saveCouple({dates:[...(couple.dates||[]),{label,date}]});
+  $('dName').value='';
+  $('dDate').value='';
+  fillPanel();
+};
 
 /* overlays simples */
 $('goAlbum').onclick=async()=>{const g=$('albumGrid');g.innerHTML='Cargando…';$('ovAlbum').classList.add('on');const ims=msgs.filter(m=>m.kind==='image');g.innerHTML='';if(!ims.length){g.textContent='Aún no hay fotos.';return}for(const m of ims.slice(-60).reverse()){const i=document.createElement('img');mediaUrl(m.media_path).then(u=>i.src=u).catch(()=>{});i.onclick=()=>{showBig(i.src,false,null,m.media_path)};g.appendChild(i)}};
