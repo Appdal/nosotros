@@ -176,7 +176,7 @@ input[type=file]{display:none}
 /* llamadas */
 #callUI{position:fixed;inset:0;z-index:60;background:#0d0a0c;color:#fff;display:none;flex-direction:column}
 #callUI.on{display:flex}
-#rv{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000}
+#rv{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#0d0a0c}
 #lv{touch-action:none;cursor:grab;position:absolute;right:14px;top:calc(14px + env(safe-area-inset-top));width:30vw;max-width:150px;max-height:34vh;aspect-ratio:3/4;object-fit:contain;border-radius:14px;border:2px solid rgba(255,255,255,.7);background:#222;z-index:2;transform:scaleX(-1)}
 #lv.back{transform:none}
 #callUI.audio #rv,#callUI.audio #lv,#callUI.waiting #rv{visibility:hidden}
@@ -971,7 +971,7 @@ async function getMedia(video,facing='user'){return navigator.mediaDevices.getUs
 async function makePC(){const pc=new RTCPeerConnection({iceServers:await iceServers()});
   pc.onicecandidate=e=>{if(e.candidate)sig('ice',{cand:e.candidate.toJSON()})};
   pc.ontrack=e=>{const rv=$('rv');if(rv.srcObject!==e.streams[0]){rv.srcObject=e.streams[0];rv.play().catch(()=>{})}};
-  pc.onconnectionstatechange=()=>{if(!call)return;const st=pc.connectionState;if(st==='connected'&&!call.t0){call.t0=Date.now();stopRing();cState('live','00:00');call.timer=setInterval(()=>{if(call&&call.t0)$('cStatus').textContent=mmss((Date.now()-call.t0)/1000)},1000)}
+  pc.onconnectionstatechange=()=>{if(!call)return;const st=pc.connectionState;if(st==='connected'&&!call.t0){call.t0=Date.now();sendScreen();stopRing();cState('live','00:00');call.timer=setInterval(()=>{if(call&&call.t0)$('cStatus').textContent=mmss((Date.now()-call.t0)/1000)},1000)}
     else if(st==='failed'){endCall('No se pudo conectar. Prueben con wifi.',true)}
     else if(st==='disconnected'){$('cStatus').textContent='Reconectando…'}};
   for(const t of call.stream.getTracks())pc.addTrack(t.kind==='video'&&call.dz?call.dz.out:t,call.stream);return pc}
@@ -997,7 +997,11 @@ async function onSig(p){if(!p||p.from===me)return;
   if(p.type==='accept'&&call.role==='out'&&!call.accepted){call.accepted=true;clearInterval(ringIv);clearInterval(call.pushIv);clearTimeout(call.noAns);stopRing();cState('waiting','Conectando…');
     call.pc=await makePC();const off=await call.pc.createOffer();await call.pc.setLocalDescription(off);sig('sdp',{desc:call.pc.localDescription.toJSON()});return}
   if(p.type==='sdp'){const pc=call.pc;if(!pc)return;await pc.setRemoteDescription(p.desc);if(p.desc.type==='offer'){const ans=await pc.createAnswer();await pc.setLocalDescription(ans);sig('sdp',{desc:pc.localDescription.toJSON()})}flushIce();return}
-  if(p.type==='ice'){call.iceQ.push(p.cand);flushIce();return}}
+  if(p.type==='ice'){call.iceQ.push(p.cand);flushIce();return}
+  if(p.type==='screen'){if(p.ar>0.2&&p.ar<5){call.remoteAR=p.ar;if(call.video&&call.stream)startDigitalZoom()}return}}
+/* cada celular le dice al otro la forma de su pantalla, para enviarle la imagen ya ajustada (sin franjas ni recortes) */
+function sendScreen(){if(call&&call.video)sig('screen',{ar:innerWidth/innerHeight})}
+addEventListener('resize',()=>{clearTimeout(sendScreen.t);sendScreen.t=setTimeout(sendScreen,300)});
 /* --- quien recibe --- */
 $('cAcc').onclick=async()=>{if(!call||call.role!=='in')return;unlock();stopRing();clearInterval(call.watch);call.accepted=true;
   try{call.stream=await getMedia(call.video)}catch(e){flash('Necesito permiso de cámara/micrófono para contestar.',5000);sig('reject');endCall('',false);return}
@@ -1050,20 +1054,21 @@ cui.addEventListener('click',()=>{if(cui.classList.contains('mini'))cui.classLis
 let zbT=null;
 function zBadge(t){const b=$('zBadge');b.textContent=t;b.classList.add('on');clearTimeout(zbT);zbT=setTimeout(()=>b.classList.remove('on'),1100)}
 function camTrack(){return call&&call.video&&call.stream&&call.stream.getVideoTracks()[0]}
+function dzBase(c,vw,vh){let sx=0,sy=0,sw=vw,sh=vh;const ar=c.remoteAR;if(ar){if(vw/vh>ar){sw=vh*ar;sx=(vw-sw)/2}else{sh=vw/ar;sy=(vh-sh)/2}}return [sx,sy,sw,sh]}
+function dzCrop(c,vw,vh){let [sx,sy,sw,sh]=dzBase(c,vw,vh);const z=c.dzZ||1,zw=sw/z,zh=sh/z;return [sx+(sw-zw)/2,sy+(sh-zh)/2,zw,zh]}
 function startDigitalZoom(){if(call.dz)return true;const raw=camTrack();if(!raw||!HTMLCanvasElement.prototype.captureStream)return false;
   const v=document.createElement('video');v.muted=true;v.playsInline=true;v.setAttribute('playsinline','');v.srcObject=new MediaStream([raw]);v.play().catch(()=>{});
   const c=document.createElement('canvas');const st=raw.getSettings();c.width=st.width||640;c.height=st.height||480;const ctx=c.getContext('2d');
   const dz={v,c,ctx,out:null,timer:null};call.dz=dz;const me_=call;
-  dz.timer=setInterval(()=>{if(call!==me_)return;const vw=v.videoWidth,vh=v.videoHeight;if(!vw||!vh)return;const k=Math.min(1,960/Math.max(vw,vh)),W=Math.round(vw*k),H=Math.round(vh*k);
-    if(c.width!==W||c.height!==H){c.width=W;c.height=H}const z=me_.camZ||1,sw=vw/z,sh=vh/z,mx=(vw-sw)/2,my=(vh-sh)/2;
-    ctx.drawImage(v,mx,my,sw,sh,0,0,W,H)},1000/30);
+  dz.timer=setInterval(()=>{if(call!==me_)return;const vw=v.videoWidth,vh=v.videoHeight;if(!vw||!vh)return;const [,, cw,ch]=dzBase(me_,vw,vh),k=Math.min(1,960/Math.max(cw,ch)),W=Math.round(cw*k),H=Math.round(ch*k);
+    if(c.width!==W||c.height!==H){c.width=W;c.height=H}ctx.drawImage(v,...dzCrop(me_,vw,vh),0,0,W,H)},1000/30);
   dz.out=c.captureStream(30).getVideoTracks()[0];dz.out.enabled=raw.enabled;
   const snd=call.pc&&call.pc.getSenders().find(x=>x.track&&x.track.kind==='video');if(snd)snd.replaceTrack(dz.out).catch(()=>{});
   $('lv').srcObject=new MediaStream([dz.out]);return true}
 function camZoomTo(z){const t=camTrack();if(!t)return;z=Math.max(1,Math.min(5,z));call.camZ=z;
   const cap=t.getCapabilities?t.getCapabilities():{};
-  if(cap.zoom&&!call.dz){const hz=cap.zoom.min+(Math.min(cap.zoom.max,cap.zoom.min*5)-cap.zoom.min)*(z-1)/4;t.applyConstraints({advanced:[{zoom:hz}]}).catch(()=>{});call.hw=true}
-  else if(!startDigitalZoom()){zBadge('Este celular no permite zoom');return}
+  if(cap.zoom){const hz=cap.zoom.min+(Math.min(cap.zoom.max,cap.zoom.min*5)-cap.zoom.min)*(z-1)/4;t.applyConstraints({advanced:[{zoom:hz}]}).catch(()=>{});call.hw=true}
+  else if(startDigitalZoom())call.dzZ=z;else{zBadge('Este celular no permite zoom');return}
   zBadge(z<1.05?'Zoom 1× (normal)':'Tu cámara '+z.toFixed(1)+'× · tu pareja lo ve')}
 /* pantalla grande: zoom SOLO para ver tú mejor el video de tu pareja (no lo ve nadie más) */
 const vz={z:1,x:0,y:0,ptrs:new Map(),pinch:0,lastTap:0};
