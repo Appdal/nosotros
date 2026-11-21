@@ -161,6 +161,7 @@ input[type=file]{display:none}
 #cMin svg{width:26px;height:26px}
 #callUI.mini{inset:auto;right:12px;top:calc(66px + env(safe-area-inset-top));width:118px;height:168px;border-radius:18px;overflow:hidden;box-shadow:0 8px 26px rgba(0,0,0,.45);cursor:pointer}
 #callUI.mini #lv,#callUI.mini .cbtns{display:none!important}
+#callUI.mini #rv{transform:none!important}
 #callUI.mini .cinfo{margin:auto 0 8px!important;padding:0 6px!important;align-items:center!important;gap:0}
 #callUI.mini .cinfo h3{font-size:13px}#callUI.mini .cinfo p{font-size:12px}
 #callUI.mini:not(.audio) .cinfo .av{display:none}
@@ -1496,20 +1497,14 @@ function noteCleanup(){if(!me)return;const oRead=new Date(profiles[other]?.last_
     else if(oRead>=new Date(m.created_at).getTime())noteTimers[id]=setTimeout(async()=>{try{await sb.from('messages').delete().eq('id',id)}catch(e){}msgs=msgs.filter(x=>x.id!==id);delete byId[id];render()},60000)}}
 function hideNotesNow(){let ch=false;for(const m of msgs)if(m.kind==='note'&&m.sender!==me&&!hidden.has(m.id)){hidden.add(m.id);ch=true}if(ch){render();saveHidden()}}
 
-/* ---------- VENTANA FLOTANTE (imagen en imagen) ----------
-   Al minimizar la videollamada, el video de tu pareja pasa a una ventana flotante del sistema (sigue al salir de la app), con su voz.
-   Al salir de la app también intenta ponerse flotante solo (Chrome Android con Media Session; Safari con autopictureinpicture).
-   Nota: el sistema apaga TU cámara mientras estás fuera de la app; al volver se reanuda. */
+/* El recuadro del chat conserva el video remoto. Al salir, el navegador puede abrir su ventana flotante. */
 const rvEl=$('rv');
 function armAutoPip(active){
   rvEl.autoPictureInPicture=active;
   rvEl.toggleAttribute('autopictureinpicture',active);
 }
-function pipOK(){return !!((document.pictureInPictureEnabled&&rvEl.requestPictureInPicture)||(rvEl.webkitSupportsPresentationMode&&rvEl.webkitSupportsPresentationMode('picture-in-picture')))}
-/* se pide sin esperas para no perder el permiso del toque (Safari es estricto) */
 function enterPip(){
   if(!call?.video||!rvEl.videoWidth||inPip())return;
-  if(!document.hidden&&!cui.classList.contains('mini'))return;
   try{
     if(rvEl.webkitSupportsPresentationMode?.('picture-in-picture')&&rvEl.webkitSetPresentationMode){
       rvEl.webkitSetPresentationMode('picture-in-picture');
@@ -1519,8 +1514,10 @@ function enterPip(){
   }catch(e){}
 }
 function inPip(){return document.pictureInPictureElement===rvEl||rvEl.webkitPresentationMode==='picture-in-picture'}
-/* mientras flota, la burbuja de dentro de la app se esconde (el sistema muestra la ventana); al cerrarla, la burbuja vuelve */
-function syncPip(){cui.classList.toggle('pip',inPip()&&!!call)}
+function syncPip(){
+  cui.classList.toggle('pip',document.hidden&&inPip()&&!!call);
+  if(!document.hidden&&call?.video&&rvEl.srcObject&&rvEl.paused)rvEl.play().catch(()=>{});
+}
 rvEl.addEventListener('enterpictureinpicture',syncPip);rvEl.addEventListener('leavepictureinpicture',syncPip);rvEl.addEventListener('webkitpresentationmodechanged',syncPip);
 function exitPip(){
   armAutoPip(false);
@@ -1528,6 +1525,13 @@ function exitPip(){
 }
 
 try{navigator.mediaSession&&navigator.mediaSession.setActionHandler('enterpictureinpicture',()=>enterPip())}catch(e){}
+document.addEventListener('visibilitychange',()=>{
+  if(!document.hidden&&call?.video&&inPip()){
+    exitPip();
+    armAutoPip(true);
+  }
+  syncPip();
+});
 /* al salir de la app: el lienzo del zoom se frena en segundo plano, así que se envía la cámara directa; al volver, se reanuda */
 document.addEventListener('visibilitychange',()=>{if(!call||!call.pc||!call.dz)return;const snd=call.pc.getSenders().find(x=>x.track&&x.track.kind==='video');const raw=call.stream&&call.stream.getVideoTracks()[0];if(!snd||!raw)return;
   snd.replaceTrack(document.hidden?raw:call.dz.out).catch(()=>{})});
@@ -1547,7 +1551,7 @@ $('cMin').onclick=ev=>{
   miniDrag=null;miniMoved=false;miniX=miniY=0;
   cui.style.removeProperty('--mini-x');cui.style.removeProperty('--mini-y');
   cui.classList.add('mini');
-  if(call?.video&&pipOK()){armAutoPip(true);enterPip()}
+  if(call?.video&&rvEl.srcObject&&rvEl.paused)rvEl.play().catch(()=>{});
 };
 cui.addEventListener('pointerdown',ev=>{
   if(!cui.matches('.mini:not(.audio)')||!ev.isPrimary||ev.button!==0)return;
