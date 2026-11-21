@@ -333,6 +333,11 @@ input[type=file]{display:none}
 #locationPanel:not([open]),#locationConsent:not([open]){display:none}
 #locationPanel::backdrop,#locationConsent::backdrop{background:rgba(20,8,12,.55)}
 #locationPlaces a{color:var(--ink)}
+.media-open{position:relative;display:block;width:100%;padding:0;border:0;background:none;color:inherit;text-align:left}
+.media-play{pointer-events:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);border-radius:50%;width:44px;height:44px;display:grid;place-items:center;background:#000a;color:#fff}
+#bigImg,#bigVid{touch-action:pan-y pinch-zoom}
+#bigNav{display:flex;align-items:center;gap:12px;color:#fff}
+#bigNav button:disabled{opacity:.45}
 </style>
 </head>
 <body>
@@ -480,7 +485,7 @@ input[type=file]{display:none}
 <div class="ov" id="ovCoupons"><div class="sheet"><h3>Cupones de amor 🎟️</h3><div id="couponsList"></div><div class="rowline"><input id="cpIn" placeholder="Vale por…"><button class="pill sm" id="cpAdd">+</button></div><button class="pill alt ovx">Cerrar</button></div></div>
 <div class="ov" id="ovLove"><div class="sheet"><h3>Pensando en ti 💞</h3><p>Elige un mensaje o escribe el tuyo. Le llega como notificación.</p><div id="loveList"></div><div class="rowline"><input id="lvIn" placeholder="Tu mensaje de amor…"><button class="pill sm" id="lvSend">Enviar</button></div><button class="pill alt ovx">Cerrar</button></div></div>
 <div class="ov" id="ovPin"><div class="sheet"><h3 id="pinTitle">Zona privada 🔒</h3><p id="pinMsg">Escribe el código de 4 dígitos.</p><input id="pinInput" type="password" inputmode="numeric" maxlength="4" placeholder="••••" style="text-align:center;letter-spacing:8px;font-size:22px"><div id="pinErr" style="color:#c0392b;font-size:14px;min-height:18px"></div><button class="pill" id="pinGo">Entrar</button><button class="pill alt ovx">Cancelar</button></div></div>
-<div class="ov" id="ovBig"><div class="sheet" style="background:transparent;align-items:center"><button class="pill sm" id="bigSave" style="align-self:flex-end">⬇️ Guardar en el celular</button><img id="bigImg" style="max-width:100%;max-height:80dvh;border-radius:12px"><video id="bigVid" class="hidden" controls playsinline style="max-width:100%;max-height:80dvh;border-radius:12px;background:#000"></video><button class="pill alt ovx">Cerrar</button></div></div>
+<div class="ov" id="ovBig"><div class="sheet" style="background:transparent;align-items:center"><button class="pill sm" id="bigSave" style="align-self:flex-end">⬇️ Guardar en el celular</button><img id="bigImg" alt="Foto compartida" style="max-width:100%;max-height:74dvh;border-radius:12px"><video id="bigVid" class="hidden" controls playsinline style="max-width:100%;max-height:74dvh;border-radius:12px;background:#000"></video><div id="bigNav" class="hidden"><button class="pill sm alt" id="bigPrev" aria-label="Archivo anterior">‹</button><span id="bigCount" aria-live="polite"></span><button class="pill sm alt" id="bigNext" aria-label="Archivo siguiente">›</button></div><button class="pill alt ovx">Cerrar</button></div></div>
 <div class="ov" id="ovPass"><div class="sheet"><h3>Nueva contraseña</h3><p id="npMsg">Escribe tu nueva contraseña (mínimo 6 caracteres).</p>
   <input id="np1" type="password" autocomplete="new-password" placeholder="Nueva contraseña" minlength="6">
   <input id="np2" type="password" autocomplete="new-password" placeholder="Repite la contraseña" minlength="6">
@@ -796,7 +801,23 @@ function voiceEl(m){const box=document.createElement('div');box.className='vz';c
   bar.addEventListener('pointerup',end);bar.addEventListener('pointercancel',end);
   for(const t of ['touchstart','touchmove','touchend','click'])bar.addEventListener(t,e=>e.stopPropagation(),{passive:true});
   return box}
-function imgInto(b,m){const ph=document.createElement('div');ph.className='ph';if(m.width&&m.height)ph.style.aspectRatio=m.width+'/'+m.height;b.appendChild(ph);const c=urlCache[m.media_path];const place=url=>{let el;if(m.kind==='image'){el=document.createElement('img');el.className='att';el.alt='Foto';el.decoding='async';if(m.width&&m.height){el.width=m.width;el.height=m.height}el.onclick=ev=>{ev.stopPropagation();showBig(url,false,null,m.media_path)}}else{el=document.createElement('video');el.controls=true;el.playsInline=true;el.preload='metadata'}el.src=url;ph.replaceWith(el)};
+function imgInto(b,m){const ph=document.createElement('div');ph.className='ph';if(m.width&&m.height)ph.style.aspectRatio=m.width+'/'+m.height;b.appendChild(ph);const c=urlCache[m.media_path];const place=url=>{
+  const video=m.kind==='video',button=document.createElement('button');
+  const el=document.createElement(video?'video':'img');
+  button.className='media-open';button.type='button';button.setAttribute('aria-label',video?'Abrir video':'Abrir foto');
+  if(video){
+    el.playsInline=true;el.preload='metadata';
+    const play=document.createElement('span');play.className='media-play';play.textContent='▶';play.setAttribute('aria-hidden','true');
+    button.append(el,play);
+  }else{
+    el.className='att';el.alt='';el.decoding='async';
+    if(m.width&&m.height){el.width=m.width;el.height=m.height}
+    button.append(el);
+  }
+  el.src=url;
+  button.onclick=ev=>{ev.stopPropagation();openChatMedia(m,url)};
+  ph.replaceWith(button);
+};
   if(c&&c.exp>Date.now()){place(c.url);return}
   ph._load=()=>mediaUrl(m.media_path).then(place).catch(()=>ph.textContent='No se pudo cargar');
   if(lazyIO)lazyIO.observe(ph);else ph._load()}
@@ -963,11 +984,78 @@ function closeOv(o){o.classList.remove('on');if(o.id==='ovBig')bigClosed();if(o.
 document.querySelectorAll('.ovx').forEach(b=>b.onclick=e=>closeOv(e.target.closest('.ov')));
 document.querySelectorAll('.ov').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)closeOv(o)}));
 /* foto/video en grande: tocar en cualquier parte fuera de la foto o del video la cierra */
-$('ovBig').addEventListener('click',e=>{const o=$('ovBig');if(e.target!==o&&o.classList.contains('on')&&!e.target.closest('img,video,button'))closeOv(o)});
+$('ovBig').addEventListener('click',e=>{const o=$('ovBig');if(e.target!==o&&o.classList.contains('on')&&!e.target.closest('img,video,button,#bigNav'))closeOv(o)});
 /* visor grande: foto o video; onClose se ejecuta al cerrarlo */
 let bigOnClose=null;
 let bigPath=null;
-function showBig(url,isVideo,onClose,path){bigPath=path||null;$('bigSave').classList.toggle('hidden',!path);const im=$('bigImg'),vd=$('bigVid');bigOnClose=onClose||null;if(isVideo){im.classList.add('hidden');im.removeAttribute('src');vd.classList.remove('hidden');vd.src=url;vd.play().catch(()=>{})}else{vd.classList.add('hidden');im.classList.remove('hidden');im.src=url}$('ovBig').classList.add('on')}
+let bigSeries=null;
+function showBig(url,isVideo,onClose,path,series=null){
+  bigSeries=series;
+  bigPath=path||null;
+  bigOnClose=onClose||null;
+  $('bigSave').classList.toggle('hidden',!path);
+  $('bigNav').classList.toggle('hidden',!series||series.items.length<2);
+  if(series){
+    $('bigCount').textContent=(series.index+1)+' / '+series.items.length;
+    $('bigPrev').disabled=series.index===0;
+    $('bigNext').disabled=series.index===series.items.length-1;
+  }
+  const im=$('bigImg'),vd=$('bigVid');
+  vd.pause();
+  if(isVideo){
+    im.classList.add('hidden');im.removeAttribute('src');
+    vd.classList.remove('hidden');vd.src=url;vd.play().catch(()=>{});
+  }else{
+    vd.classList.add('hidden');vd.removeAttribute('src');vd.load();
+    im.classList.remove('hidden');im.src=url;
+  }
+  $('ovBig').classList.add('on');
+}
+function openChatMedia(m,url){
+  const items=msgs.filter(item=>!hidden.has(item.id)&&item.media_path&&(item.kind==='image'||item.kind==='video'));
+  const index=items.findIndex(item=>item.id===m.id);
+  showBig(url,m.kind==='video',null,m.media_path,index<0?null:{items,index,loading:false});
+}
+async function stepBig(delta){
+  const series=bigSeries;
+  if(!series||series.loading)return;
+  const index=series.index+delta;
+  const m=series.items[index];
+  if(!m)return;
+  series.loading=true;
+  try{
+    const url=await mediaUrl(m.media_path);
+    if(bigSeries!==series)return;
+    series.index=index;
+    showBig(url,m.kind==='video',null,m.media_path,series);
+  }catch(e){
+    if(bigSeries===series)flash('No se pudo abrir el archivo.');
+  }finally{series.loading=false}
+}
+$('bigPrev').onclick=()=>stepBig(-1);
+$('bigNext').onclick=()=>stepBig(1);
+document.addEventListener('keydown',event=>{
+  if(!bigSeries||event.altKey||event.ctrlKey||event.metaKey||event.target.closest?.('video,input,textarea'))return;
+  if(event.key==='ArrowLeft'||event.key==='ArrowRight'){
+    event.preventDefault();stepBig(event.key==='ArrowLeft'?-1:1);
+  }
+});
+for(const media of [$('bigImg'),$('bigVid')]){
+  let start=null;
+  media.addEventListener('touchstart',event=>{
+    const t=event.touches[0];
+    const controls=media.id==='bigVid'&&t.clientY>media.getBoundingClientRect().bottom-44;
+    start=event.touches.length===1&&!controls?{x:t.clientX,y:t.clientY}:null;
+  },{passive:true});
+  media.addEventListener('touchcancel',()=>{start=null},{passive:true});
+  media.addEventListener('touchend',event=>{
+    const t=event.changedTouches[0],from=start;
+    start=null;
+    if(!from||event.touches.length)return;
+    const x=t.clientX-from.x,y=t.clientY-from.y;
+    if(Math.abs(x)>=45&&Math.abs(x)>Math.abs(y)*1.4)stepBig(x<0?1:-1);
+  },{passive:true});
+}
 /* guardar foto/video en el celular, en su calidad original */
 async function saveMedia(path,kind){if(!path)return;show('Descargando…');try{const url=await mediaUrl(path);const r=await fetch(url);if(!r.ok)throw new Error(r.status);const blob=await r.blob();
   const ext=(path.split('.').pop()||'').toLowerCase()||(kind==='video'?'mp4':'jpg');const name='Nosotros-'+new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')+'.'+ext;
@@ -976,7 +1064,7 @@ async function saveMedia(path,kind){if(!path)return;show('Descargando…');try{c
   const a=document.createElement('a');a.href=URL.createObjectURL(file);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},4000);show('');flash('✓ Guardado en Descargas / Galería')}
   catch(e){show('');flash('No se pudo guardar: '+(e.message||e))}}
 $('bigSave').onclick=()=>{if(bigPath)saveMedia(bigPath,$('bigVid').classList.contains('hidden')?'image':'video')};
-function bigClosed(){const vd=$('bigVid');try{vd.pause()}catch(e){}vd.removeAttribute('src');vd.load();vd.classList.add('hidden');$('bigImg').classList.remove('hidden');const f=bigOnClose;bigOnClose=null;f&&f()}
+function bigClosed(){bigSeries=null;const vd=$('bigVid');try{vd.pause()}catch(e){}vd.removeAttribute('src');vd.load();vd.classList.add('hidden');$('bigImg').removeAttribute('src');$('bigImg').classList.remove('hidden');const f=bigOnClose;bigOnClose=null;f&&f()}
 $('pOut').onclick=async()=>{await sb.auth.signOut();location.reload()};
 function buildColors(){const c=$('colors');c.innerHTML='';for(const [k,v] of Object.entries(PALETTES)){const s=document.createElement('button');s.className='swatch';s.dataset.c=k;s.title=v[2]||k;s.setAttribute('aria-label',v[2]||k);s.style.background='linear-gradient(135deg,'+v[0]+' 55%,'+v[1]+')';s.onclick=()=>{saveCouple({color:k});applyTheme()};c.appendChild(s)}}
 document.querySelectorAll('.seg [data-th]').forEach(b=>b.onclick=()=>{try{localStorage.setItem('tema',b.dataset.th)}catch(e){}applyTheme()});
@@ -1033,7 +1121,7 @@ $('dAdd').onclick=()=>{
 };
 
 /* overlays simples */
-$('goAlbum').onclick=async()=>{const g=$('albumGrid');g.innerHTML='Cargando…';$('ovAlbum').classList.add('on');const ims=msgs.filter(m=>m.kind==='image');g.innerHTML='';if(!ims.length){g.textContent='Aún no hay fotos.';return}for(const m of ims.slice(-60).reverse()){const i=document.createElement('img');mediaUrl(m.media_path).then(u=>i.src=u).catch(()=>{});i.onclick=()=>{showBig(i.src,false,null,m.media_path)};g.appendChild(i)}};
+$('goAlbum').onclick=async()=>{const g=$('albumGrid');g.innerHTML='Cargando…';$('ovAlbum').classList.add('on');const ims=msgs.filter(m=>m.kind==='image');g.innerHTML='';if(!ims.length){g.textContent='Aún no hay fotos.';return}for(const m of ims.slice(-60).reverse()){const i=document.createElement('img');mediaUrl(m.media_path).then(u=>i.src=u).catch(()=>{});i.onclick=()=>{if(i.getAttribute('src'))openChatMedia(m,i.src)};g.appendChild(i)}};
 $('goFav').onclick=()=>{const l=$('favList');l.innerHTML='';const favs=msgs.filter(m=>m.fav);if(!favs.length)l.textContent='Marca mensajes con ★ para verlos aquí.';favs.forEach(m=>{const d=document.createElement('div');d.className='listit';d.innerHTML='<div class="gr"><b style="color:var(--mine)"></b><div></div></div>';d.querySelector('b').textContent=who(m.sender);d.querySelector('.gr div').textContent=snip(m);d.onclick=()=>{$('ovFav').classList.remove('on');jumpTo(m.id)};l.appendChild(d)});$('ovFav').classList.add('on')};
 function listEditor(key,listEl,fmt,onToggle){const l=$(listEl);l.innerHTML='';const arr=couple[key]||[];if(!arr.length)l.innerHTML='<p style="color:var(--soft)">Vacío todavía.</p>';arr.forEach((it,i)=>{const row=document.createElement('div');row.className='listit';const g=document.createElement('div');g.className='gr';fmt(g,it,i);const del=document.createElement('button');del.className='del';del.textContent='✕';del.onclick=()=>{const a=[...arr];a.splice(i,1);saveCouple({[key]:a})};row.append(g,del);l.appendChild(row)})}
 $('goReasons').onclick=()=>{listEditor('reasons','reasonsList',(g,it)=>g.textContent=it);$('ovReasons').classList.add('on')};
