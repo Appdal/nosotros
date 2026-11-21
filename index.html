@@ -337,7 +337,7 @@ input[type=file]{display:none}
 
   <h4>&nbsp;</h4>
   <h4>Vaciar chat 🗑️</h4>
-  <button class="pill sm alt" id="pWipe">Borrar mensajes por fechas</button>
+  <button class="pill sm alt" id="pWipe">Borrar mensajes por fecha y hora</button>
   <p>Atajo: escribe <b>/borrar</b> en el chat.</p>
   <button class="pill alt" id="pOut">Cerrar sesión</button>
   <button class="pill alt" id="pClose">Listo</button>
@@ -376,10 +376,13 @@ input[type=file]{display:none}
   <div class="seg" style="width:100%"><button class="pill" id="stkSaveSend">Guardar y enviar</button><button class="pill alt" id="stkSave">Solo guardar</button></div>
   <button class="pill alt ovx" style="width:100%">Cancelar</button></div></div>
 <div class="ov" id="ovEmoji"><div class="sheet"><h3>Reaccionar</h3><div class="emogrid" id="emoGrid"></div><button class="pill alt ovx">Cerrar</button></div></div>
-<div class="ov" id="ovWipe"><div class="sheet"><h3>Borrar mensajes por fechas</h3>
+<div class="ov" id="ovWipe"><div class="sheet"><h3>Borrar mensajes por fecha y hora</h3>
   <p>Se borran <b>para los dos</b> y no se pueden recuperar (también las fotos, videos y audios de esos días). Tus stickers guardados se mantienen.</p>
-  <div class="rowline"><label style="flex:1;font-size:14px">Desde<br><input id="wFrom" type="date" style="width:100%"></label><label style="flex:1;font-size:14px">Hasta<br><input id="wTo" type="date" style="width:100%"></label></div>
-  <div class="seg"><button data-w="hoy">Hoy</button><button data-w="7">Últimos 7 días</button><button data-w="todo">Todo</button></div>
+  <div class="seg" id="wPresets"><button data-w="1h">Última hora</button><button data-w="hoy">Hoy</button><button data-w="7">Últimos 7 días</button><button data-w="todo">Todo</button><button data-w="custom">Personalizado</button></div>
+  <div style="font-size:14px;font-weight:600">Desde</div>
+  <div class="rowline"><input id="wFrom" type="date" style="flex:1.4"><input id="wFromT" type="time" style="flex:1"></div>
+  <div style="font-size:14px;font-weight:600">Hasta</div>
+  <div class="rowline"><input id="wTo" type="date" style="flex:1.4"><input id="wToT" type="time" style="flex:1"></div>
   <label style="display:flex;gap:8px;align-items:center;font-size:14px"><input type="checkbox" id="wHot" style="width:auto"> Incluir el chat privado 🔥</label>
   <p id="wCount" style="font-weight:600;color:var(--ink)"></p>
   <button class="pill" id="wGo" style="background:#c0392b">Borrar</button><button class="pill alt ovx">Cancelar</button></div></div>
@@ -1098,16 +1101,20 @@ addEventListener('resize',()=>{if(lv.style.left){const r=lv.getBoundingClientRec
 const ymd=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 const dayStart=s=>{const [y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d)};
 let wArmed=false,wT=null;
-function openWipe(){panel.classList.remove('on');const today=ymd(new Date());const first=msgs[0]?ymd(new Date(msgs[0].created_at)):today;$('wFrom').value=first;$('wTo').value=today;$('wHot').checked=false;wDisarm();wCountUpd();$('ovWipe').classList.add('on')}
-function wRange(){const a=$('wFrom').value,b=$('wTo').value;if(!a||!b)return null;let from=dayStart(a),to=dayStart(b);if(to<from)[from,to]=[to,from];to=new Date(to.getTime()+86400000);return {from,to}}
+const hm2=d=>String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+function wSel(k){document.querySelectorAll('#wPresets button').forEach(b=>b.classList.toggle('sel',b.dataset.w===k))}
+function wPreset(k){const t=new Date();let from;if(k==='1h')from=new Date(t.getTime()-3600000);else if(k==='hoy')from=new Date(t.getFullYear(),t.getMonth(),t.getDate());else if(k==='7')from=new Date(t.getFullYear(),t.getMonth(),t.getDate()-6);else if(k==='todo')from=msgs[0]?new Date(msgs[0].created_at):new Date(t.getFullYear(),t.getMonth(),t.getDate());else{wSel('custom');return}
+  if(k==='todo'||k==='hoy'||k==='7')from.setSeconds(0,0);$('wFrom').value=ymd(from);$('wFromT').value=(k==='hoy'||k==='7')?'00:00':hm2(from);$('wTo').value=ymd(t);$('wToT').value=k==='1h'?hm2(t):'23:59';wSel(k);wCountUpd()}
+function openWipe(){panel.classList.remove('on');$('wHot').checked=false;wDisarm();wPreset('todo');$('ovWipe').classList.add('on')}
+function wAt(dateStr,timeStr,end){const d=dayStart(dateStr);const [h,m]=(timeStr||(end?'23:59':'00:00')).split(':').map(Number);d.setHours(h||0,m||0,0,0);if(end)d.setTime(d.getTime()+60000);return d}
+function wRange(){const a=$('wFrom').value,b=$('wTo').value;if(!a||!b)return null;let from=wAt(a,$('wFromT').value,false),to=wAt(b,$('wToT').value,true);if(to<=from){const f=wAt(b,$('wToT').value,false),t2=wAt(a,$('wFromT').value,true);from=f;to=t2}return {from,to}}
 function wDisarm(){wArmed=false;clearTimeout(wT);$('wGo').textContent='Borrar'}
 async function wCountUpd(){wDisarm();const r=wRange();const el=$('wCount');if(!r){el.textContent='Elige las dos fechas.';return}el.textContent='Contando…';
   try{const q=t=>sb.from(t).select('id',{count:'exact',head:true}).gte('created_at',r.from.toISOString()).lt('created_at',r.to.toISOString());
     const [a,b]=await Promise.all([q('messages'),$('wHot').checked?q('hot_msgs'):Promise.resolve({count:0})]);const n=a.count||0,h=b.count||0;
     el.textContent=(n+h)?'Se borrarán '+n+' mensaje'+(n===1?'':'s')+' del chat'+($('wHot').checked?' y '+h+' del chat privado':'')+'.':'No hay mensajes en esas fechas.';$('wGo').disabled=!(n+h)}catch(e){el.textContent='No se pudo contar.'}}
-['wFrom','wTo','wHot'].forEach(id=>$(id).addEventListener('change',wCountUpd));
-document.querySelectorAll('#ovWipe [data-w]').forEach(b=>b.onclick=()=>{const t=new Date();$('wTo').value=ymd(t);const k=b.dataset.w;
-  $('wFrom').value=k==='hoy'?ymd(t):k==='7'?ymd(new Date(t.getTime()-6*86400000)):(msgs[0]?ymd(new Date(msgs[0].created_at)):ymd(t));wCountUpd()});
+['wFrom','wTo','wFromT','wToT'].forEach(id=>$(id).addEventListener('change',()=>{wSel('custom');wCountUpd()}));$('wHot').addEventListener('change',wCountUpd);
+document.querySelectorAll('#wPresets [data-w]').forEach(b=>b.onclick=()=>wPreset(b.dataset.w));
 $('wGo').onclick=async()=>{const r=wRange();if(!r)return;if(!wArmed){wArmed=true;$('wGo').textContent='¿Seguro? Toca otra vez para borrar';wT=setTimeout(wDisarm,5000);return}
   wDisarm();$('wGo').disabled=true;$('wGo').textContent='Borrando…';
   try{const {data,error}=await sb.rpc('borrar_rango',{desde:r.from.toISOString(),hasta:r.to.toISOString(),privado:$('wHot').checked});if(error)throw error;
