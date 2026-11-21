@@ -488,8 +488,6 @@ input[type=file]{display:none}
   <h4>Notificaciones</h4>
   <button class="pill" id="pNotif">Activar notificaciones</button>
   <p id="pNotifSt"></p><p id="pInstall"></p>
-  <button class="pill alt" id="pNotifTest">Probar aviso en este celular</button>
-  <p id="pNotifTestStatus" role="status"></p>
 
   <h4>Mi foto de perfil</h4>
   <div class="rowline"><div class="av" id="myAv" style="width:48px;height:48px">♥</div><button class="pill sm alt" id="myAvBtn">Elegir de galería</button></div>
@@ -1433,28 +1431,6 @@ async function saveSub(s){const j=s.toJSON();await sb.from('push_subs').upsert({
 async function enablePush(){try{const perm=await Notification.requestPermission();if(perm!=='granted'){checkPushState();return}const reg=await navigator.serviceWorker.ready;const {data,error}=await sb.functions.invoke('notify',{method:'GET'});if(error||!data?.publicKey)throw new Error('faltan las claves');const s=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64u(data.publicKey)});await saveSub(s);flash('✓ Notificaciones activadas');checkPushState()}catch(e){flash('No se pudieron activar: '+(e.message||e),6000)}}
 async function disablePush(){try{const reg=await navigator.serviceWorker.ready;const s=await reg.pushManager.getSubscription();if(s){await sb.from('push_subs').delete().eq('endpoint',s.endpoint);await s.unsubscribe()}flash('🔕 Notificaciones desactivadas');checkPushState()}catch(e){flash('No se pudieron desactivar')}}
 $('pNotif').onclick=()=>$('pNotif').dataset.on?disablePush():enablePush();
-$('pNotifTest').onclick=async()=>{
-  const button=$('pNotifTest'),status=$('pNotifTestStatus');
-  if(!window.Notification||Notification.permission!=='granted'||!navigator.serviceWorker){
-    status.textContent='Activa las notificaciones en este celular para hacer la prueba.';
-    return;
-  }
-  button.disabled=true;
-  try{
-    const reg=await navigator.serviceWorker.getRegistration();
-    if(!reg)throw new Error('No hay un servicio de notificaciones activo.');
-    const sub=await reg.pushManager?.getSubscription();
-    await reg.showNotification('Nosotros · Aviso de prueba',{
-      body:'Este aviso se generó en tu celular.',tag:'nosotros-test',icon:'icon-192.png',
-      silent:false,vibrate:[250,120,250],data:{url:reg.scope}
-    });
-    status.textContent=sub
-      ?'Aviso local enviado. Comprueba si lo viste, sonó o vibró. El envío por internet es una prueba aparte.'
-      :'Aviso local enviado. El celular todavía no está suscrito a los avisos por internet.';
-  }catch(e){status.textContent='No se pudo mostrar la notificación de prueba.'}
-  finally{button.disabled=false}
-};
-
 let locationShares=[],locationPrompted=null,locationUpdating=false,locationDeciding=false;
 const locationPanel=$('locationPanel'),locationConsent=$('locationConsent');
 let locationVisibleSince=Date.now();
