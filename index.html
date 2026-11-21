@@ -144,6 +144,8 @@ input[type=file]{display:none}
 #callUI.mini .cinfo{margin:auto 0 8px!important;padding:0 6px!important;align-items:center!important;gap:0}
 #callUI.mini .cinfo h3{font-size:13px}#callUI.mini .cinfo p{font-size:12px}
 #callUI.mini:not(.audio) .cinfo .av{display:none}
+#callUI.mini:not(.audio){touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab;translate:var(--mini-x,0px) var(--mini-y,0px)}
+#callUI.mini:not(.audio):active{cursor:grabbing}
 #callUI.mini.audio{width:auto;height:auto;border-radius:99px;background:#1fae5b;padding:6px 14px 6px 6px}
 #callUI.mini.audio .cinfo{flex-direction:row;margin:0!important;gap:8px}
 #callUI.mini.audio .cinfo .av{width:34px!important;height:34px!important;font-size:16px!important}
@@ -1046,8 +1048,48 @@ function noteCleanup(){if(!me)return;const oRead=new Date(profiles[other]?.last_
 function hideNotesNow(){let ch=false;for(const m of msgs)if(m.kind==='note'&&m.sender!==me&&!hidden.has(m.id)){hidden.add(m.id);ch=true}if(ch){render();saveHidden()}}
 
 /* llamada minimizada: se encoge a una burbuja y deja ver el chat; tocarla la vuelve a abrir */
-$('cMin').onclick=ev=>{ev.stopPropagation();cui.classList.add('mini')};
-cui.addEventListener('click',()=>{if(cui.classList.contains('mini'))cui.classList.remove('mini')});
+let miniDrag=null,miniMoved=false,miniX=0,miniY=0;
+function moveMini(x,y){
+  const rect=cui.getBoundingClientRect(),view=window.visualViewport;
+  const left=rect.left-miniX,top=rect.top-miniY;
+  const minX=(view?.offsetLeft||0)+8-left,minY=(view?.offsetTop||0)+8-top;
+  miniX=Math.max(minX,Math.min(x,minX+(view?.width||innerWidth)-rect.width-16));
+  miniY=Math.max(minY,Math.min(y,minY+(view?.height||innerHeight)-rect.height-16));
+  cui.style.setProperty('--mini-x',miniX+'px');
+  cui.style.setProperty('--mini-y',miniY+'px');
+}
+$('cMin').onclick=ev=>{
+  ev.stopPropagation();
+  miniDrag=null;miniMoved=false;miniX=miniY=0;
+  cui.style.removeProperty('--mini-x');cui.style.removeProperty('--mini-y');
+  cui.classList.add('mini');
+};
+cui.addEventListener('pointerdown',ev=>{
+  if(!cui.matches('.mini:not(.audio)')||!ev.isPrimary||ev.button!==0)return;
+  miniMoved=false;
+  miniDrag={id:ev.pointerId,x:ev.clientX-miniX,y:ev.clientY-miniY};
+  cui.setPointerCapture(ev.pointerId);
+});
+cui.addEventListener('pointermove',ev=>{
+  if(ev.pointerId!==miniDrag?.id||!cui.matches('.mini:not(.audio)'))return;
+  const x=ev.clientX-miniDrag.x,y=ev.clientY-miniDrag.y;
+  if(!miniMoved&&Math.hypot(x-miniX,y-miniY)<6)return;
+  miniMoved=true;
+  moveMini(x,y);
+});
+function endMiniDrag(ev){if(ev.pointerId===miniDrag?.id)miniDrag=null}
+cui.addEventListener('pointerup',endMiniDrag);
+cui.addEventListener('pointercancel',endMiniDrag);
+cui.addEventListener('lostpointercapture',endMiniDrag);
+cui.addEventListener('click',()=>{
+  if(!cui.classList.contains('mini'))return;
+  if(!miniMoved)cui.classList.remove('mini');
+  miniMoved=false;
+});
+function keepMiniVisible(){if(cui.matches('.mini:not(.audio)'))moveMini(miniX,miniY)}
+window.addEventListener('resize',keepMiniVisible);
+window.visualViewport?.addEventListener('resize',keepMiniVisible);
+window.visualViewport?.addEventListener('scroll',keepMiniVisible);
 
 /* ---------- ZOOM DE TU CÁMARA CON LOS DEDOS (lo ve tu pareja) Y VENTANITA MOVIBLE ----------
    · Pellizcar la pantalla o tu ventanita: acerca TU cámara y tu pareja ve lo acercado (1× a 5×).
