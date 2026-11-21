@@ -1032,7 +1032,14 @@ async function endCall(text,logIt,outcome){const c=call;if(!c)return;call=null;i
   exitPip();cui.classList.remove('mini','pip');vzReset();$('rv').srcObject=null;$('lv').srcObject=null;if(text){cState(null,text);setTimeout(()=>{if(!call)cui.classList.remove('on')},1400)}else cui.classList.remove('on');
   if(c.role==='out'&&c.msgId&&logIt!==false){const base=c.video?'🎥 Videollamada':'📞 Llamada';const body=c.t0?base+' · '+mmss((Date.now()-c.t0)/1000):base+' '+(outcome||'no contestada');try{await sb.from('messages').update({body}).eq('id',c.msgId);if(!c.t0&&!(other&&online[other]))sb.functions.invoke('notify',{body:{message_id:c.msgId}}).catch(()=>{})}catch(e){}if(byId[c.msgId]){byId[c.msgId].body=body;render()}}}
 $('callA').onclick=()=>startCall(false);$('callV').onclick=()=>startCall(true);
-addEventListener('pagehide',()=>{if(call){sig('hangup');}});
+addEventListener('pagehide',event=>{
+  if(!call||event.persisted)return;
+  if(call.t0&&call.video&&(inPip()||cui.classList.contains('mini')))return;
+  sig('hangup');
+});
+addEventListener('pageshow',()=>{
+  if(call?.t0&&rvEl.srcObject&&rvEl.paused)rvEl.play().catch(()=>{});
+});
 
 /* ---------- aviso del chat privado ----------
    Lo que se escribe en el chat privado nunca va en una notificación. En su lugar se deja un aviso discreto en el
@@ -1061,17 +1068,31 @@ function hideNotesNow(){let ch=false;for(const m of msgs)if(m.kind==='note'&&m.s
    Al minimizar la videollamada, el video de tu pareja pasa a una ventana flotante del sistema (sigue al salir de la app), con su voz.
    Al salir de la app también intenta ponerse flotante solo (Chrome Android con Media Session; Safari con autopictureinpicture).
    Nota: el sistema apaga TU cámara mientras estás fuera de la app; al volver se reanuda. */
-const rvEl=$('rv');try{rvEl.autoPictureInPicture=true;rvEl.setAttribute('autopictureinpicture','')}catch(e){}
+const rvEl=$('rv');
+function armAutoPip(active){
+  rvEl.autoPictureInPicture=active;
+  rvEl.toggleAttribute('autopictureinpicture',active);
+}
 function pipOK(){return !!((document.pictureInPictureEnabled&&rvEl.requestPictureInPicture)||(rvEl.webkitSupportsPresentationMode&&rvEl.webkitSupportsPresentationMode('picture-in-picture')))}
 /* se pide sin esperas para no perder el permiso del toque (Safari es estricto) */
-function enterPip(){if(!call||!call.video||!rvEl.srcObject||document.pictureInPictureElement)return;
-  try{if(rvEl.webkitSupportsPresentationMode&&rvEl.webkitSupportsPresentationMode('picture-in-picture')&&!document.pictureInPictureEnabled){rvEl.webkitSetPresentationMode('picture-in-picture');return}
-    if(document.pictureInPictureEnabled&&rvEl.requestPictureInPicture)rvEl.requestPictureInPicture().catch(()=>{})}catch(e){}}
-function inPip(){return !!document.pictureInPictureElement||rvEl.webkitPresentationMode==='picture-in-picture'}
+function enterPip(){
+  if(!call?.video||!cui.classList.contains('mini')||!rvEl.videoWidth||inPip())return;
+  try{
+    if(rvEl.webkitSupportsPresentationMode?.('picture-in-picture')&&rvEl.webkitSetPresentationMode){
+      rvEl.webkitSetPresentationMode('picture-in-picture');
+    }else if(document.pictureInPictureEnabled&&rvEl.requestPictureInPicture){
+      rvEl.requestPictureInPicture().catch(()=>{});
+    }
+  }catch(e){}
+}
+function inPip(){return document.pictureInPictureElement===rvEl||rvEl.webkitPresentationMode==='picture-in-picture'}
 /* mientras flota, la burbuja de dentro de la app se esconde (el sistema muestra la ventana); al cerrarla, la burbuja vuelve */
 function syncPip(){cui.classList.toggle('pip',inPip()&&!!call)}
 rvEl.addEventListener('enterpictureinpicture',syncPip);rvEl.addEventListener('leavepictureinpicture',syncPip);rvEl.addEventListener('webkitpresentationmodechanged',syncPip);
-function exitPip(){try{if(document.pictureInPictureElement)document.exitPictureInPicture().catch(()=>{});else if(rvEl.webkitPresentationMode==='picture-in-picture')rvEl.webkitSetPresentationMode('inline')}catch(e){}}
+function exitPip(){
+  armAutoPip(false);
+  try{if(document.pictureInPictureElement===rvEl)document.exitPictureInPicture().catch(()=>{});else if(rvEl.webkitPresentationMode==='picture-in-picture')rvEl.webkitSetPresentationMode('inline')}catch(e){}
+}
 
 try{navigator.mediaSession&&navigator.mediaSession.setActionHandler('enterpictureinpicture',()=>enterPip())}catch(e){}
 /* al salir de la app: el lienzo del zoom se frena en segundo plano, así que se envía la cámara directa; al volver, se reanuda */
@@ -1093,7 +1114,7 @@ $('cMin').onclick=ev=>{
   miniDrag=null;miniMoved=false;miniX=miniY=0;
   cui.style.removeProperty('--mini-x');cui.style.removeProperty('--mini-y');
   cui.classList.add('mini');
-  if(call&&call.video&&pipOK())enterPip();
+  if(call?.video&&pipOK()){armAutoPip(true);enterPip()}
 };
 cui.addEventListener('pointerdown',ev=>{
   if(!cui.matches('.mini:not(.audio)')||!ev.isPrimary||ev.button!==0)return;
@@ -1114,7 +1135,7 @@ cui.addEventListener('pointercancel',endMiniDrag);
 cui.addEventListener('lostpointercapture',endMiniDrag);
 cui.addEventListener('click',()=>{
   if(!cui.classList.contains('mini'))return;
-  if(!miniMoved)cui.classList.remove('mini');
+  if(!miniMoved){cui.classList.remove('mini');armAutoPip(false)}
   miniMoved=false;
 });
 function keepMiniVisible(){if(cui.matches('.mini:not(.audio)'))moveMini(miniX,miniY)}
