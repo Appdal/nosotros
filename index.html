@@ -44,11 +44,11 @@ img.ph2{object-fit:cover}
 #lerr{color:#c0392b;min-height:20px;text-align:center;font-size:14px}
 /* header */
 header{display:flex;align-items:center;gap:10px;padding:calc(8px + env(safe-area-inset-top)) 12px 8px;background:var(--bar);border-bottom:1px solid var(--line)}
-.av{position:relative;width:44px;height:44px;border-radius:50%;background:var(--mine);color:#fff;display:grid;place-items:center;font:700 22px Caveat,cursive;flex:none;overflow:hidden}
+.av{position:relative;width:44px;height:44px;border-radius:50%;background:var(--mine);color:#fff;display:grid;place-items:center;font:600 18px Figtree,system-ui,sans-serif;flex:none;overflow:hidden}
 .av img{width:100%;height:100%;object-fit:cover}
 .av.on::after{content:"";position:absolute;right:0;bottom:0;width:13px;height:13px;border-radius:50%;background:#2fbf71;border:2px solid var(--bar)}
 .hd{flex:1;min-width:0}
-h2{margin:0;font:700 26px/1.05 Caveat,cursive;color:var(--mine);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+h2{margin:0;font:600 17px/1.25 Figtree,system-ui,sans-serif;letter-spacing:.1px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sub{font-size:13px;color:var(--soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.sub.on{color:#1f9d5c;font-weight:600}.sub.typ{color:var(--mine);font-style:italic;font-weight:600}
 .btn{flex:none;width:42px;height:44px;border-radius:50%;border:0;display:grid;place-items:center;background:transparent;color:var(--mine)}
 .btn svg{width:22px;height:22px}.btn:disabled{opacity:.35}
@@ -294,7 +294,7 @@ input[type=file]{display:none}
 <div class="ov" id="ovProfile"><div class="sheet" style="align-items:stretch">
   <div style="text-align:center">
     <div class="av" id="profAv" style="width:96px;height:96px;margin:0 auto;font-size:40px">♥</div>
-    <h3 id="profName" style="margin:10px 0 2px;text-align:center">Nosotros</h3>
+    <h3 id="profName" style="margin:10px 0 2px;text-align:center;font:600 20px/1.3 Figtree,system-ui,sans-serif;color:var(--ink)">Nosotros</h3>
     <p id="profDays" style="text-align:center"></p>
   </div>
   <div class="seg">
