@@ -75,6 +75,8 @@ header .btn{width:36px}
 .ph{display:block;aspect-ratio:4/3;border-radius:12px;margin:-2px -6px 4px;width:calc(100% + 12px);min-width:200px;background:var(--line)}
 .t{display:block;text-align:right;font-size:12px;opacity:.72;margin-top:2px;white-space:nowrap}
 .t .star{color:#f6c945}
+.tk{display:inline-block;margin-left:4px;font-size:13px;letter-spacing:-4px;padding-right:4px;opacity:.85;font-weight:700}
+.tk.r{color:#8fe3ff;opacity:1}
 .q{display:block;border-left:3px solid var(--accent);background:rgba(0,0,0,.06);border-radius:8px;padding:4px 8px;margin:0 -4px 6px;font-size:14px;white-space:normal}
 .m.me .q{background:rgba(255,255,255,.18);border-left-color:#fff}
 .q b{display:block;font-size:13px;color:var(--mine)}.m.me .q b{color:#fff}
@@ -507,7 +509,10 @@ function status(){const p=other&&online[other];const nm=otherName();title.textCo
 function agoShort(ts){const d=new Date(ts),t=new Date(),y=new Date();y.setDate(t.getDate()-1);if(Date.now()-d<60000)return 'recién';if(d.toDateString()===t.toDateString())return 'hoy '+hm(ts);if(d.toDateString()===y.toDateString())return 'ayer '+hm(ts);return d.toLocaleDateString('es',{day:'numeric',month:'short'})}
 setInterval(()=>{if(!online[other])status()},60000);
 
-async function markRead(){if(document.hidden||!me)return;const last=msgs.filter(m=>m.sender!==me).at(-1);if(!last)return;const t=new Date(last.created_at).getTime();if(t<=lastReadSent)return;lastReadSent=t;await sb.from('profiles').update({last_read:last.created_at}).eq('user_id',me)}
+/* ✓✓ entregado: este celular avisa hasta qué mensaje de la pareja ya recibió (aunque no lo haya leído) */
+let lastDelivSent=0;
+async function markDelivered(){if(!me)return;const last=msgs.filter(m=>m.sender!==me).at(-1);if(!last)return;const t=new Date(last.created_at).getTime();if(t<=lastDelivSent)return;lastDelivSent=t;try{await sb.from('profiles').update({last_delivered:last.created_at}).eq('user_id',me)}catch(e){lastDelivSent=0}}
+async function markRead(){markDelivered();if(document.hidden||!me)return;const last=msgs.filter(m=>m.sender!==me).at(-1);if(!last)return;const t=new Date(last.created_at).getTime();if(t<=lastReadSent)return;lastReadSent=t;await sb.from('profiles').update({last_read:last.created_at}).eq('user_id',me)}
 
 /* ---------- media ---------- */
 /* Enlaces firmados: se piden en lote (una sola consulta para muchas fotos), se reutilizan y se guardan
@@ -548,7 +553,7 @@ function buildMsg(m){
   if(m.kind==='image'||m.kind==='video')imgInto(b,m);
   if(m.kind==='voice')b.appendChild(voiceEl(m));
   if(m.body)b.appendChild(document.createTextNode(m.body));
-  const t=document.createElement('span');t.className='t';t.innerHTML=(m.fav?'<span class="star">★</span> ':'')+hm(m.created_at);b.appendChild(t);
+  const t=document.createElement('span');t.className='t';t.innerHTML=(m.fav?'<span class="star">★</span> ':'')+hm(m.created_at)+(mine?'<span class="tk">✓</span>':'');b.appendChild(t);
   const rx=m.reactions||{};const emos=Object.values(rx).filter(Boolean);if(emos.length){const rr=document.createElement('div');rr.className='rx';const counts={};emos.forEach(e=>counts[e]=(counts[e]||0)+1);for(const [e,n] of Object.entries(counts)){const s=document.createElement('span');s.textContent=e+(n>1?' '+n:'');rr.appendChild(s)}b.appendChild(rr)}
   const acts=document.createElement('div');acts.className='acts';
   for(const e of ['❤️','😂','😮','😍','🔥']){const eb=document.createElement('button');eb.className='emo';eb.textContent=e;eb.onclick=ev=>{ev.stopPropagation();react(cur(),e)};acts.appendChild(eb)}
@@ -567,6 +572,7 @@ function render(){
   if(couple.reasons&&couple.reasons.length){const r=couple.reasons[dayNum()%couple.reasons.length];nodes.push(keyed('card:rz',r,()=>{const c=document.createElement('div');c.className='card';c.innerHTML='<div class="cap">Hoy te amo porque 💘</div><div class="big"></div>';c.querySelector('.big').textContent=r;return c}))}
   if(!msgs.length)nodes.push(keyed('empty','',()=>{const e=document.createElement('div');e.className='empty';e.textContent='Aún no hay mensajes. ¡Escribe el primero! ❤️';return e}));
   let lastDay='',lastMine=null;
+  const op=other&&profiles[other]||{},tsOf=x=>x?new Date(x).getTime():0,oRead=tsOf(op.last_read),oDeliv=Math.max(oRead,tsOf(op.last_delivered));
   for(const m of msgs){
     if(hidden.has(m.id))continue;
     const dk=new Date(m.created_at).toDateString();
@@ -575,9 +581,8 @@ function render(){
     if(m.kind==='buzz'){const tx='⚡ '+(m.sender===me?'Enviaste un zumbido':who(m.sender)+' te envió un zumbido')+((m.body||'').trim()?' — '+m.body:'')+' · '+hm(m.created_at);nodes.push(keyed(m.id,tx,()=>{const z=document.createElement('div');z.className='bz';z.textContent=tx;return z}));continue}
     if(m.sender===me)lastMine=m;
     const el=keyed(m.id,msgSig(m),()=>buildMsg(m));el.classList.toggle('sel',m.id===selId);nodes.push(el);
+    if(m.sender===me){const tk=el.querySelector('.tk');if(tk){const ts=new Date(m.created_at).getTime();const st=ts<=oRead?'r':ts<=oDeliv?'d':'s';if(tk.dataset.st!==st){tk.dataset.st=st;tk.textContent=st==='s'?'✓':'✓✓';tk.classList.toggle('r',st==='r');tk.title=st==='r'?'Leído':st==='d'?'Entregado':'Enviado'}}}
   }
-  const oRead=other&&profiles[other]?.last_read;
-  if(lastMine&&msgs.at(-1)===lastMine&&oRead&&new Date(oRead)>=new Date(lastMine.created_at))nodes.push(keyed('seen','',()=>{const s=document.createElement('div');s.className='seen';s.textContent='Visto';return s}));
   /* aplica solo las diferencias en pantalla */
   const want=new Set(nodes);
   for(const el of [...wrap.children])if(!want.has(el))el.remove();
