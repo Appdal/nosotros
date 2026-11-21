@@ -8,13 +8,28 @@ self.addEventListener('install', e => {
 self.addEventListener('activate', e => {
   e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim()));
 });
-// Siempre la versión más nueva: pide a la red saltándose la caché del navegador; caché solo si no hay internet
+// Íconos: se sirven al instante desde la copia guardada y se refrescan por detrás.
+// Todo lo demás (index.html): siempre la versión más nueva desde internet; si la red tarda más de 4 s
+// o no hay conexión, abre con la copia guardada (y la nueva queda lista para la próxima vez).
 self.addEventListener('fetch', e => {
-  const u = new URL(e.request.url);
-  if (e.request.method !== 'GET' || u.origin !== location.origin) return;
-  e.respondWith(fetch(e.request, { cache: 'reload' }).then(r => {
-    const copy = r.clone(); caches.open(CACHE).then(c => c.put(e.request, copy)); return r;
-  }).catch(() => caches.match(e.request).then(r => r || caches.match('./index.html'))));
+  const req = e.request, u = new URL(req.url);
+  if (req.method !== 'GET' || u.origin !== location.origin) return;
+  const save = r => { if (r && r.ok) { const copy = r.clone(); caches.open(CACHE).then(c => c.put(req, copy)); } return r; };
+  if (/\.(png|jpe?g|webp|svg|ico)$/i.test(u.pathname)) {
+    e.respondWith(caches.match(req).then(hit => {
+      const net = fetch(req).then(save).catch(() => hit);
+      return hit || net;
+    }));
+    return;
+  }
+  const fallback = () => caches.match(req).then(r => r || caches.match('./index.html'));
+  e.respondWith(new Promise(resolve => {
+    let done = false;
+    const finish = r => { if (!done && r) { done = true; resolve(r); } };
+    const timer = setTimeout(() => fallback().then(finish), 4000);
+    fetch(req, { cache: 'reload' }).then(r => { clearTimeout(timer); finish(save(r)); })
+      .catch(() => { clearTimeout(timer); fallback().then(r => { if (!done) { done = true; resolve(r || Response.error()); } }); });
+  }));
 });
 
 self.addEventListener('push', e => {
