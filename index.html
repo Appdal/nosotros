@@ -431,8 +431,11 @@ input[type=file]{display:none}
   <div class="seg"><button class="sm pill alt" id="goSearch">🔎 Buscar</button><button class="sm pill alt" id="goAlbum">📸 Álbum</button><button class="sm pill alt" id="goFav">⭐ Favoritos</button></div>
   <div class="seg"><button class="sm pill alt" id="goReasons">💘 Razones</button><button class="sm pill alt" id="goGoals">🎯 Metas</button><button class="sm pill alt" id="goCoupons">🎟️ Cupones</button></div>
 
+  <div id="locationPrivacyEntry" class="hidden">
+    <h4>Privacidad</h4>
+    <button class="pill alt" id="pLocation">Ubicación compartida</button>
+  </div>
   <h4>Notificaciones</h4>
-  <button class="pill alt" id="pLocation">Ubicación</button>
   <button class="pill" id="pNotif">Activar notificaciones</button>
   <p id="pNotifSt"></p><p id="pInstall"></p>
 
@@ -1017,7 +1020,7 @@ $('dAdd').onclick=()=>{
     const now=performance.now();
     if(emptyDateTap!==null&&now-emptyDateTap<=420){
       emptyDateTap=null;
-      $('pLocation').click();
+      openLocationPanel();
     }else emptyDateTap=now;
     return;
   }
@@ -1064,6 +1067,7 @@ async function refreshLocation(){
   }
   locationShares=data;
   const own=ownLocationShare();
+  $('locationPrivacyEntry').classList.toggle('hidden',own?.state!=='active');
   if(own?.state!=='pending')locationPrompted=null;
   if(own?.state==='pending'&&locationPrompted!==own.recipient&&!locationConsent.open){
     locationPrompted=own.recipient;
@@ -1128,12 +1132,13 @@ async function updateLocationOnBuzz(sender){
   finally{locationUpdating=false}
 }
 
-$('pLocation').onclick=()=>{
+function openLocationPanel(){
   panel.classList.remove('on');
   $('locationStatus').textContent='Cargando ubicación…';
   locationPanel.showModal();
   refreshLocation();
-};
+}
+$('pLocation').onclick=openLocationPanel;
 $('locationAsk').onclick=async()=>{
   const share=receivedLocationShare();
   if(share?.state!=='off')return;
