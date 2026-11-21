@@ -138,10 +138,9 @@ input[type=file]{display:none}
 .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
 .grid img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;background:var(--line)}
 /* llamada minimizada */
-#cMin{position:absolute;left:12px;top:calc(12px + env(safe-area-inset-top));z-index:3;width:42px;height:42px;border-radius:50%;border:0;background:rgba(255,255,255,.18);color:#fff;display:grid;place-items:center}
-#cMin svg{width:24px;height:24px}
+#cMin svg{width:26px;height:26px}
 #callUI.mini{inset:auto;right:12px;top:calc(66px + env(safe-area-inset-top));width:118px;height:168px;border-radius:18px;overflow:hidden;box-shadow:0 8px 26px rgba(0,0,0,.45);cursor:pointer}
-#callUI.mini #lv,#callUI.mini .cbtns,#callUI.mini #cMin{display:none!important}
+#callUI.mini #lv,#callUI.mini .cbtns{display:none!important}
 #callUI.mini .cinfo{margin:auto 0 8px!important;padding:0 6px!important;align-items:center!important;gap:0}
 #callUI.mini .cinfo h3{font-size:13px}#callUI.mini .cinfo p{font-size:12px}
 #callUI.mini:not(.audio) .cinfo .av{display:none}
@@ -404,7 +403,6 @@ input[type=file]{display:none}
 
 <div id="callUI">
   <video id="rv" autoplay playsinline></video>
-  <button id="cMin" aria-label="Minimizar llamada" title="Minimizar y ver el chat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
   <video id="lv" autoplay playsinline muted></video>
   <div class="cinfo"><div class="av" id="cAv" style="width:96px;height:96px;font-size:40px">♥</div><h3 id="cName"></h3><p id="cStatus"></p></div>
   <div class="cbtns" id="cIn">
@@ -412,6 +410,7 @@ input[type=file]{display:none}
     <button class="cb green" id="cAcc" aria-label="Contestar"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1A17 17 0 0 1 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1z"/></svg></button>
   </div>
   <div class="cbtns hidden" id="cAct">
+    <button class="cb" id="cMin" aria-label="Minimizar llamada" title="Minimizar y ver el chat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
     <button class="cb" id="cMute" aria-label="Silenciar micrófono">🎙️</button>
     <button class="cb" id="cCam" aria-label="Cámara">📷</button>
     <button class="cb" id="cFlip" aria-label="Cambiar cámara">🔄</button>
@@ -957,7 +956,7 @@ function callSubscribe(){try{callCh=sb.channel('llamada',{config:{broadcast:{sel
 const sig=(type,extra={})=>{if(callCh)callCh.send({type:'broadcast',event:'sig',payload:{type,cid:call&&call.cid,from:me,...extra}}).catch(()=>{})};
 const cui=$('callUI');
 function cState(cls,status){cui.classList.remove('waiting','live');if(cls)cui.classList.add(cls);if(status!=null)$('cStatus').textContent=status}
-function showCallUI(video,incoming){cui.classList.add('on');cui.classList.remove('mini');$('cMin').classList.toggle('hidden',!!incoming);cui.classList.toggle('audio',!video);$('cName').textContent=otherName()||'Tu pareja';
+function showCallUI(video,incoming){cui.classList.add('on');cui.classList.remove('mini');cui.classList.toggle('audio',!video);$('cName').textContent=otherName()||'Tu pareja';
   const avph=couple.avatars&&other&&couple.avatars[other];const ca=$('cAv');ca.innerHTML='';if(avph){const i=document.createElement('img');mediaUrl(avph).then(u=>i.src=u).catch(()=>{});ca.appendChild(i)}else ca.textContent=(otherName()||'♥')[0].toUpperCase();
   $('lv').style.display=incoming||!video?'none':'';$('cIn').classList.toggle('hidden',!incoming);$('cAct').classList.toggle('hidden',incoming);$('cCam').classList.toggle('hidden',!video);$('cFlip').classList.toggle('hidden',!video);$('cMute').classList.remove('off');$('cCam').classList.remove('off')}
 function startRing(kind){stopRing();unlock();const play=()=>{if(muted())return;kind==='in'?tone([[660,0,.35],[880,.4,.35],[660,1.1,.35],[880,1.5,.35]],'sine',.22):tone([[440,0,.9]],'sine',.08)};play();ringTone=setInterval(play,kind==='in'?2600:3000);if(kind==='in')try{navigator.vibrate&&navigator.vibrate([600,400,600,400,600])}catch(e){}}
