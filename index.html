@@ -986,7 +986,7 @@ async function getMedia(video,facing='user'){return navigator.mediaDevices.getUs
 async function makePC(){const pc=new RTCPeerConnection({iceServers:await iceServers()});
   pc.onicecandidate=e=>{if(e.candidate)sig('ice',{cand:e.candidate.toJSON()})};
   pc.ontrack=e=>{const rv=$('rv');if(rv.srcObject!==e.streams[0]){rv.srcObject=e.streams[0];rv.play().catch(()=>{})}};
-  pc.onconnectionstatechange=()=>{if(!call)return;const st=pc.connectionState;if(st==='connected'&&!call.t0){call.t0=Date.now();armAutoPip(call.video);sendScreen();stopRing();cState('live','00:00');call.timer=setInterval(()=>{if(call&&call.t0)$('cStatus').textContent=mmss((Date.now()-call.t0)/1000)},1000)}
+  pc.onconnectionstatechange=()=>{if(!call)return;const st=pc.connectionState;if(st==='connected'&&!call.t0){call.t0=Date.now();sendScreen();stopRing();cState('live','00:00');call.timer=setInterval(()=>{if(call&&call.t0)$('cStatus').textContent=mmss((Date.now()-call.t0)/1000)},1000)}
     else if(st==='failed'){endCall('No se pudo conectar. Prueben con wifi.',true)}
     else if(st==='disconnected'){$('cStatus').textContent='Reconectando…'}};
   for(const t of call.stream.getTracks())pc.addTrack(t.kind==='video'&&call.dz?call.dz.out:t,call.stream);return pc}
@@ -1075,8 +1075,7 @@ function armAutoPip(active){
 function pipOK(){return !!((document.pictureInPictureEnabled&&rvEl.requestPictureInPicture)||(rvEl.webkitSupportsPresentationMode&&rvEl.webkitSupportsPresentationMode('picture-in-picture')))}
 /* se pide sin esperas para no perder el permiso del toque (Safari es estricto) */
 function enterPip(){
-  if(!call?.video||!rvEl.videoWidth||inPip())return;
-  if(!document.hidden&&!cui.classList.contains('mini'))return;
+  if(!call?.video||!cui.classList.contains('mini')||!rvEl.videoWidth||inPip())return;
   try{
     if(rvEl.webkitSupportsPresentationMode?.('picture-in-picture')&&rvEl.webkitSetPresentationMode){
       rvEl.webkitSetPresentationMode('picture-in-picture');
@@ -1135,7 +1134,7 @@ cui.addEventListener('pointercancel',endMiniDrag);
 cui.addEventListener('lostpointercapture',endMiniDrag);
 cui.addEventListener('click',()=>{
   if(!cui.classList.contains('mini'))return;
-  if(!miniMoved)cui.classList.remove('mini');
+  if(!miniMoved){cui.classList.remove('mini');armAutoPip(false)}
   miniMoved=false;
 });
 function keepMiniVisible(){if(cui.matches('.mini:not(.audio)'))moveMini(miniX,miniY)}
