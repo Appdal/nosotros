@@ -94,9 +94,14 @@ header .btn{width:36px}
 .vz button{flex:none;width:40px;height:40px;border-radius:50%;border:0;background:var(--mine);color:#fff;display:grid;place-items:center}
 .m.me .vz button{background:#fff;color:var(--mine)}
 .vz button svg{width:18px;height:18px}
-.vz .bar{flex:1;height:4px;border-radius:2px;background:currentColor;opacity:.3;position:relative;overflow:hidden}
-.vz .bar i{position:absolute;inset:0 auto 0 0;width:0;background:currentColor}
-.vz small{font-size:13px;opacity:.85;white-space:nowrap}
+.vz .bar{flex:1;height:22px;position:relative;touch-action:none;cursor:pointer}
+.vz .bar::before{content:'';position:absolute;left:0;right:0;top:9px;height:4px;border-radius:2px;background:currentColor;opacity:.25}
+.vz .bar i{position:absolute;left:0;top:9px;height:4px;border-radius:2px;width:0;background:var(--mine)}
+.vz .bar b{position:absolute;top:4px;left:0;width:14px;height:14px;margin-left:-7px;border-radius:50%;background:var(--mine);box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform .1s}
+.vz.seek .bar b{transform:scale(1.3)}
+.m.me .vz .bar i,.m.me .vz .bar b{background:#fff}
+#list .m.me .vz .bar i,#list .m.me .vz .bar b{background:var(--mine)}
+.vz small{font-size:13px;opacity:.85;white-space:nowrap;min-width:34px;text-align:right;font-variant-numeric:tabular-nums}
 .empty{margin:40px auto;text-align:center;color:var(--soft);max-width:300px}
 /* composer */
 footer{background:var(--bar);border-top:1px solid var(--line);padding:8px 8px calc(8px + env(safe-area-inset-bottom))}
@@ -276,6 +281,39 @@ input[type=file]{display:none}
   #app>header .btn{width:32px}
   #app>footer :is(#cam,#gal,#stkBtn){width:30px}
 }
+
+/* Estilo tipo WhatsApp: fondo con dibujitos, globos con colita, barra de escribir flotante.
+   Respeta el color elegido en Ajustes y los modos claro / oscuro / automático. */
+#app{
+  --wa-paper:light-dark(#efeae2,#0b141a);
+  --chat-surface:light-dark(#ffffff,#202c33);
+  --chat-edge:light-dark(#e9edef,#2a3942);
+  --chat-received:light-dark(#ffffff,#202c33);
+  --chat-sent:light-dark(color-mix(in srgb,var(--mine) 17%,#fff),color-mix(in srgb,var(--mine) 40%,#111b21));
+  --wa-shadow:0 1px .5px rgba(11,20,26,.13);
+}
+#app>header{box-shadow:0 1px 3px rgba(11,20,26,.08)}
+#list{background-color:var(--wa-paper);background-image:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240' fill='none' stroke='%23d5cbbb' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'><path d='M30 40c-6-5-12-9-12-15a6 6 0 0 1 12-2 6 6 0 0 1 12 2c0 6-6 10-12 15z'/><path transform='translate%28120 18%29' d='M12 0l3.5 7.5 8 1-6 5.5 1.6 8L12 18l-7.1 4 1.6-8-6-5.5 8-1z'/><path d='M206 20a12 12 0 1 0 12 16 9 9 0 0 1-12-16z'/><path d='M70 92V70l16-4v22'/><circle cx='66' cy='93' r='4'/><circle cx='82' cy='89' r='4'/><g transform='translate%28160 86%29'><circle r='3.5'/><circle cy='-8' r='4.5'/><circle cy='8' r='4.5'/><circle cx='-8' r='4.5'/><circle cx='8' r='4.5'/></g><g transform='translate%2814 130%29'><rect width='30' height='21' rx='3'/><path d='M1 2l14 10 14-10'/></g><path d='M98 140h28a6 6 0 0 1 6 6v12a6 6 0 0 1-6 6h-16l-8 7v-7h-4a6 6 0 0 1-6-6v-12a6 6 0 0 1 6-6z'/><g transform='translate%28206 150%29'><circle r='12'/><path d='M-6 3a7 6 0 0 0 12 0'/><circle cx='-4' cy='-3' r='1'/><circle cx='4' cy='-3' r='1'/></g><path d='M58 200l3 8 8 3-8 3-3 8-3-8-8-3 8-3z'/><path d='M136 222h28a7 7 0 0 0 0-14 10 10 0 0 0-19-3 7 7 0 0 0-9 17z'/><path d='M210 222c-3-2.5-6-4.5-6-7.5a3 3 0 0 1 6-1 3 3 0 0 1 6 1c0 3-3 5-6 7.5z'/><path d='M104 46c-3-2.5-6-4.5-6-7.5a3 3 0 0 1 6-1 3 3 0 0 1 6 1c0 3-3 5-6 7.5z'/><g transform='translate%2820 76%29'><rect y='4' width='26' height='18' rx='4'/><circle cx='13' cy='13' r='5'/><path d='M8 4l2-4h6l2 4'/></g><circle cx='190' cy='120' r='1.6'/><circle cx='54' cy='160' r='1.6'/><circle cx='234' cy='70' r='1.6'/><circle cx='96' cy='226' r='1.6'/></svg>");background-size:200px 200px}
+:root[data-theme=dark] #list{background-image:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240' fill='none' stroke='%231f2d33' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'><path d='M30 40c-6-5-12-9-12-15a6 6 0 0 1 12-2 6 6 0 0 1 12 2c0 6-6 10-12 15z'/><path transform='translate%28120 18%29' d='M12 0l3.5 7.5 8 1-6 5.5 1.6 8L12 18l-7.1 4 1.6-8-6-5.5 8-1z'/><path d='M206 20a12 12 0 1 0 12 16 9 9 0 0 1-12-16z'/><path d='M70 92V70l16-4v22'/><circle cx='66' cy='93' r='4'/><circle cx='82' cy='89' r='4'/><g transform='translate%28160 86%29'><circle r='3.5'/><circle cy='-8' r='4.5'/><circle cy='8' r='4.5'/><circle cx='-8' r='4.5'/><circle cx='8' r='4.5'/></g><g transform='translate%2814 130%29'><rect width='30' height='21' rx='3'/><path d='M1 2l14 10 14-10'/></g><path d='M98 140h28a6 6 0 0 1 6 6v12a6 6 0 0 1-6 6h-16l-8 7v-7h-4a6 6 0 0 1-6-6v-12a6 6 0 0 1 6-6z'/><g transform='translate%28206 150%29'><circle r='12'/><path d='M-6 3a7 6 0 0 0 12 0'/><circle cx='-4' cy='-3' r='1'/><circle cx='4' cy='-3' r='1'/></g><path d='M58 200l3 8 8 3-8 3-3 8-3-8-8-3 8-3z'/><path d='M136 222h28a7 7 0 0 0 0-14 10 10 0 0 0-19-3 7 7 0 0 0-9 17z'/><path d='M210 222c-3-2.5-6-4.5-6-7.5a3 3 0 0 1 6-1 3 3 0 0 1 6 1c0 3-3 5-6 7.5z'/><path d='M104 46c-3-2.5-6-4.5-6-7.5a3 3 0 0 1 6-1 3 3 0 0 1 6 1c0 3-3 5-6 7.5z'/><g transform='translate%2820 76%29'><rect y='4' width='26' height='18' rx='4'/><circle cx='13' cy='13' r='5'/><path d='M8 4l2-4h6l2 4'/></g><circle cx='190' cy='120' r='1.6'/><circle cx='54' cy='160' r='1.6'/><circle cx='234' cy='70' r='1.6'/><circle cx='96' cy='226' r='1.6'/></svg>")}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]) #list{background-image:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240' fill='none' stroke='%231f2d33' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'><path d='M30 40c-6-5-12-9-12-15a6 6 0 0 1 12-2 6 6 0 0 1 12 2c0 6-6 10-12 15z'/><path transform='translate%28120 18%29' d='M12 0l3.5 7.5 8 1-6 5.5 1.6 8L12 18l-7.1 4 1.6-8-6-5.5 8-1z'/><path d='M206 20a12 12 0 1 0 12 16 9 9 0 0 1-12-16z'/><path d='M70 92V70l16-4v22'/><circle cx='66' cy='93' r='4'/><circle cx='82' cy='89' r='4'/><g transform='translate%28160 86%29'><circle r='3.5'/><circle cy='-8' r='4.5'/><circle cy='8' r='4.5'/><circle cx='-8' r='4.5'/><circle cx='8' r='4.5'/></g><g transform='translate%2814 130%29'><rect width='30' height='21' rx='3'/><path d='M1 2l14 10 14-10'/></g><path d='M98 140h28a6 6 0 0 1 6 6v12a6 6 0 0 1-6 6h-16l-8 7v-7h-4a6 6 0 0 1-6-6v-12a6 6 0 0 1 6-6z'/><g transform='translate%28206 150%29'><circle r='12'/><path d='M-6 3a7 6 0 0 0 12 0'/><circle cx='-4' cy='-3' r='1'/><circle cx='4' cy='-3' r='1'/></g><path d='M58 200l3 8 8 3-8 3-3 8-3-8-8-3 8-3z'/><path d='M136 222h28a7 7 0 0 0 0-14 10 10 0 0 0-19-3 7 7 0 0 0-9 17z'/><path d='M210 222c-3-2.5-6-4.5-6-7.5a3 3 0 0 1 6-1 3 3 0 0 1 6 1c0 3-3 5-6 7.5z'/><path d='M104 46c-3-2.5-6-4.5-6-7.5a3 3 0 0 1 6-1 3 3 0 0 1 6 1c0 3-3 5-6 7.5z'/><g transform='translate%2820 76%29'><rect y='4' width='26' height='18' rx='4'/><circle cx='13' cy='13' r='5'/><path d='M8 4l2-4h6l2 4'/></g><circle cx='190' cy='120' r='1.6'/><circle cx='54' cy='160' r='1.6'/><circle cx='234' cy='70' r='1.6'/><circle cx='96' cy='226' r='1.6'/></svg>")}}
+#list .day{background:light-dark(#ffffff,#182229);color:light-dark(#54656f,#8696a0);border:0;box-shadow:var(--wa-shadow);border-radius:8px;font-size:12.5px;font-weight:500;padding:5px 12px}
+#list .m:not(.stkm){border:0;box-shadow:var(--wa-shadow);border-radius:0 8px 8px 8px;padding:6px 9px 4px;margin-left:8px}
+#list .m.me:not(.stkm){border-radius:8px 0 8px 8px;margin-left:0;margin-right:8px}
+#list .m:not(.stkm)::after{content:'';position:absolute;top:0;left:-8px;width:8px;height:12px;background:inherit;clip-path:polygon(0 0,100% 0,100% 100%)}
+#list .m.me:not(.stkm)::after{left:auto;right:-8px;clip-path:polygon(0 0,100% 0,0 100%)}
+/* seguidos del mismo lado: sin colita, como en WhatsApp */
+#list .m:not(.me):not(.stkm)+.m:not(.me):not(.stkm),#list .m.me:not(.stkm)+.m.me:not(.stkm){border-radius:8px}
+#list .m:not(.me):not(.stkm)+.m:not(.me):not(.stkm)::after,#list .m.me:not(.stkm)+.m.me:not(.stkm)::after{display:none}
+#list .m:not(.stkm){display:flow-root;font-size:15.5px;line-height:1.38}
+/* hora al costado del texto, como en WhatsApp (baja a la siguiente línea solo si no entra) */
+#list .m .t{float:right;margin:8px 0 -4px 12px;line-height:1;font-size:11px;color:light-dark(#667781,#8696a0);opacity:1}
+#list .m.me:not(.stkm) .tk{color:light-dark(#667781,#8696a0)}
+#list .m.me:not(.stkm) .tk.r{color:#53bdeb}
+#list .m.me:not(.stkm) .rx span{background:var(--chat-received);border-color:var(--chat-edge)}
+#list .m.me .vz button{background:var(--mine);color:#fff}
+#app>footer{background:var(--wa-paper);border-top:0}
+#app #txt{border:0;box-shadow:var(--wa-shadow);border-radius:24px}
+#app>footer :is(#cam,#gal,#stkBtn){color:light-dark(#54656f,#8696a0)}
 </style>
 </head>
 <body>
@@ -670,8 +708,33 @@ async function flushUrls(){urlT=null;const paths=urlQ.splice(0,100);if(urlQ.leng
 const lazyIO='IntersectionObserver' in window?new IntersectionObserver(es=>{for(const e of es)if(e.isIntersecting){lazyIO.unobserve(e.target);const f=e.target._load;e.target._load=null;f&&f()}},{root:list,rootMargin:'900px 0px'}):null;
 const playIco='<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l12-7.5z"/></svg>',pauseIco='<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4.5" width="4" height="15" rx="1"/><rect x="14" y="4.5" width="4" height="15" rx="1"/></svg>';
 let curAudio=null,curBtn=null;
-function voiceEl(m){const box=document.createElement('div');box.className='vz';const btn=document.createElement('button');btn.innerHTML=playIco;const bar=document.createElement('div');bar.className='bar';const fill=document.createElement('i');bar.appendChild(fill);const tm=document.createElement('small');tm.textContent=mmss(m.duration);box.append(btn,bar,tm);
-  btn.onclick=async ev=>{ev.stopPropagation();unlock();if(curAudio&&curBtn===btn){if(curAudio.paused){curAudio.play();btn.innerHTML=pauseIco}else{curAudio.pause();btn.innerHTML=playIco}return}if(curAudio){curAudio.pause();curBtn&&(curBtn.innerHTML=playIco)}const au=new Audio();au.preload='auto';curAudio=au;curBtn=btn;btn.innerHTML=pauseIco;try{au.src=await mediaUrl(m.media_path)}catch(e){btn.innerHTML=playIco;flash('No se pudo cargar el audio');return}au.ontimeupdate=()=>{fill.style.width=(au.duration?au.currentTime/au.duration*100:0)+'%';tm.textContent=mmss(au.currentTime)};au.onended=()=>{btn.innerHTML=playIco;fill.style.width='0';tm.textContent=mmss(m.duration);curAudio=null;curBtn=null};au.play().catch(()=>{btn.innerHTML=playIco})};
+/* audio con barra arrastrable: tiempo en segundos y se puede adelantar o regresar al punto que quieras, como en WhatsApp */
+function voiceEl(m){const box=document.createElement('div');box.className='vz';const btn=document.createElement('button');btn.innerHTML=playIco;btn.setAttribute('aria-label','Reproducir audio');
+  const bar=document.createElement('div');bar.className='bar';const fill=document.createElement('i');const dot=document.createElement('b');bar.append(fill,dot);
+  const tm=document.createElement('small');tm.textContent=mmss(m.duration);box.append(btn,bar,tm);
+  let au=null,pos=0,drag=false;
+  const dur=()=>(au&&isFinite(au.duration)&&au.duration>0)?au.duration:(m.duration||0);
+  const paint=(t,showT)=>{const d=dur(),f=d?Math.max(0,Math.min(1,t/d)):0;fill.style.width=f*100+'%';dot.style.left=f*100+'%';tm.textContent=mmss(showT?t:(t>0?t:m.duration))};
+  const stopOthers=()=>{if(curAudio&&curAudio!==au){curAudio.pause();curBtn&&(curBtn.innerHTML=playIco)}};
+  async function load(){if(au)return au;const a=new Audio();a.preload='auto';let u;try{u=await mediaUrl(m.media_path)}catch(e){flash('No se pudo cargar el audio');return null}
+    /* se baja completo a memoria: así siempre se puede adelantar/regresar, aunque el servidor no lo permita */
+    try{const r=await fetch(u);if(!r.ok)throw 0;a.src=URL.createObjectURL(await r.blob())}catch(e){a.src=u}
+    a.ontimeupdate=()=>{if(!drag){pos=a.currentTime;paint(pos,true)}};
+    a.onended=()=>{btn.innerHTML=playIco;pos=0;paint(0,false);if(curAudio===a){curAudio=null;curBtn=null}};
+    a.onpause=()=>{if(!a.ended)btn.innerHTML=playIco};a.onplay=()=>{btn.innerHTML=pauseIco};
+    au=a;return a}
+  const seekTo=t=>{pos=Math.max(0,Math.min(dur()||t,t));paint(pos,true);if(au){const go=()=>{try{au.currentTime=pos}catch(e){}};if(au.readyState>=1)go();else au.addEventListener('loadedmetadata',go,{once:true})}};
+  btn.onclick=async ev=>{ev.stopPropagation();unlock();if(au&&curAudio===au&&!au.paused){au.pause();return}
+    stopOthers();const a=await load();if(!a)return;curAudio=a;curBtn=btn;
+    if(pos>0&&Math.abs(a.currentTime-pos)>.3){if(a.readyState>=1)a.currentTime=pos;else a.addEventListener('loadedmetadata',()=>{a.currentTime=pos},{once:true})}
+    a.play().catch(()=>{btn.innerHTML=playIco})};
+  const fracAt=ev=>{const r=bar.getBoundingClientRect();return Math.max(0,Math.min(1,(ev.clientX-r.left)/r.width))};
+  bar.addEventListener('pointerdown',async ev=>{ev.stopPropagation();ev.preventDefault();drag=true;box.classList.add('seek');try{bar.setPointerCapture(ev.pointerId)}catch(e){}
+    seekTo(fracAt(ev)*dur());if(!au)load()});
+  bar.addEventListener('pointermove',ev=>{if(!drag)return;ev.stopPropagation();pos=fracAt(ev)*dur();paint(pos,true)});
+  const end=ev=>{if(!drag)return;ev.stopPropagation();drag=false;box.classList.remove('seek');seekTo(pos)};
+  bar.addEventListener('pointerup',end);bar.addEventListener('pointercancel',end);
+  for(const t of ['touchstart','touchmove','touchend','click'])bar.addEventListener(t,e=>e.stopPropagation(),{passive:true});
   return box}
 function imgInto(b,m){const ph=document.createElement('div');ph.className='ph';if(m.width&&m.height)ph.style.aspectRatio=m.width+'/'+m.height;b.appendChild(ph);const c=urlCache[m.media_path];const place=url=>{let el;if(m.kind==='image'){el=document.createElement('img');el.className='att';el.alt='Foto';el.decoding='async';if(m.width&&m.height){el.width=m.width;el.height=m.height}el.onclick=ev=>{ev.stopPropagation();showBig(url,false,null,m.media_path)}}else{el=document.createElement('video');el.controls=true;el.playsInline=true;el.preload='metadata'}el.src=url;ph.replaceWith(el)};
   if(c&&c.exp>Date.now()){place(c.url);return}
