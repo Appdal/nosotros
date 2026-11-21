@@ -43,6 +43,14 @@ self.addEventListener('push', e => {
   const reg = self.registration;
   e.waitUntil((async () => {
     let body = d.body || 'Nuevo mensaje', tag = d.tag || 'chat', count = 0;
+    // Llamada entrante: aviso insistente para contestar
+    if (!buzz && /^(📞|🎥)/.test(d.body || '')) {
+      await reg.showNotification((d.title || 'Tu pareja') + (/^🎥/.test(d.body) ? ' te está haciendo una videollamada' : ' te está llamando'), {
+        body: 'Toca para contestar', icon: 'icon-192.png', badge: 'icon-192.png', tag: 'call', renotify: true,
+        requireInteraction: true, vibrate: [700, 300, 700, 300, 700, 300, 700], data: { url: reg.scope }
+      });
+      return;
+    }
     if (!buzz) {
       tag = 'msgs';
       try {
