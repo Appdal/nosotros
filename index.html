@@ -1118,6 +1118,7 @@ $('locationAsk').onclick=async()=>{
 };
 $('locationYes').onclick=()=>decideLocation(true);
 $('locationNo').onclick=()=>decideLocation(false);
+locationConsent.addEventListener('cancel',event=>event.preventDefault());
 $('locationStop').onclick=()=>decideLocation(false);
 document.addEventListener('visibilitychange',refreshLocation);
 setInterval(refreshLocation,15000);
