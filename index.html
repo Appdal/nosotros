@@ -365,8 +365,11 @@ input[type=file]{display:none}
 #cAct.hidden~#cMin,#callUI.mini #cMin{display:none}
 /* tu cámara: abajo a la derecha, más grande y sin borde */
 #callUI #lv{top:auto;right:12px;bottom:calc(100px + env(safe-area-inset-bottom));width:min(44vw,210px);max-width:none;max-height:42vh;border:0;border-radius:16px;box-shadow:0 4px 16px rgba(0,0,0,.35)}
-#uploadStatus{padding:8px 12px;background:var(--bar);border-top:1px solid var(--line)}
-#uploadStatus progress{display:block;width:100%;accent-color:var(--mine);margin:6px 0}
+#uploadStatus{display:flex;justify-content:flex-end;align-items:center;gap:10px;padding:6px 12px;background:var(--bar);border-top:1px solid var(--line)}
+#uploadText:empty{display:none}
+#uploadText{margin-right:auto;font-size:13px}
+#uploadProgress{--upload-fill:0%;position:relative;flex:none;width:28px;height:28px;border-radius:50%;background:conic-gradient(var(--mine) var(--upload-fill),var(--line) 0)}
+#uploadProgress::after{content:'';position:absolute;inset:4px;border-radius:50%;background:var(--bar)}
 #uploadActions{display:flex;justify-content:flex-end;gap:6px}
 #albumGrid{display:block}
 .album-day{margin:8px 0 4px;color:var(--soft);font-size:13px}
@@ -410,7 +413,7 @@ input[type=file]{display:none}
 <main id="list"><div class="wrap" id="wrap"></div></main>
 <section id="uploadStatus" class="hidden" aria-label="Envío de archivos">
   <div id="uploadText" role="status"></div>
-  <progress id="uploadProgress" max="100" aria-label="Progreso de la carga"></progress>
+  <div id="uploadProgress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="Progreso de la carga"></div>
   <div id="uploadActions">
     <button class="pill sm alt hidden" id="uploadRetry">Reintentar</button>
     <button class="pill sm alt" id="uploadCancel">Cancelar</button>
@@ -1068,6 +1071,11 @@ async function shrink(f){try{if(!/^image\/(jpeg|jpg|heic|heif)$/i.test(f.type||'
   return new File([out],String(f.name||'foto').replace(/\.[^.]+$/,'')+'.jpg',{type:'image/jpeg'})}catch(e){return f}}
 const fileQueue=[];
 let processingFiles=false;
+function setUploadProgress(value){
+  const ring=$('uploadProgress');
+  ring.style.setProperty('--upload-fill',value+'%');
+  ring.setAttribute('aria-valuenow',value);
+}
 function sendFiles(files){
   if(!navigator.onLine){flash('Sin conexión.');return}
   for(const file of files){
@@ -1090,7 +1098,7 @@ async function uploadWithProgress(job){
     xhr.setRequestHeader('Authorization','Bearer '+data.session.access_token);
     xhr.setRequestHeader('x-upsert','false');
     xhr.timeout=180000;
-    xhr.upload.onprogress=e=>{if(e.lengthComputable)$('uploadProgress').value=Math.round(100*e.loaded/e.total)};
+    xhr.upload.onprogress=e=>{if(e.lengthComputable&&e.total>0)setUploadProgress(Math.min(100,Math.round(100*e.loaded/e.total)))};
     xhr.onload=()=>{
       let response={};try{response=JSON.parse(xhr.responseText)}catch(e){}
       const existing=xhr.status===409||response.statusCode==='409'&&response.error==='Duplicate';
@@ -1108,21 +1116,21 @@ async function uploadWithProgress(job){
 async function processFiles(){
   if(processingFiles||!fileQueue.length||fileQueue[0].failed)return;
   processingFiles=true;
-  const status=$('uploadStatus'),text=$('uploadText'),progress=$('uploadProgress');
+  const status=$('uploadStatus'),text=$('uploadText');
   const retry=$('uploadRetry'),cancel=$('uploadCancel');
   status.classList.remove('hidden');
   try{
     while(fileQueue.length){
       const job=fileQueue[0];
-      retry.classList.add('hidden');cancel.disabled=false;progress.value=0;
-      text.textContent='Enviando '+job.file.name+(fileQueue.length>1?' · '+fileQueue.length+' pendientes':'');
+      retry.classList.add('hidden');cancel.disabled=false;setUploadProgress(0);
+      text.textContent='';
       try{
         if(job.file.size>50*1024*1024)throw new Error('El archivo supera 50 MB.');
         job.size??=await dims(job.file);
         if(!job.cancelled&&!job.uploaded){await uploadWithProgress(job);job.uploaded=!job.cancelled}
         if(!job.cancelled){
           cancel.disabled=true;
-          progress.value=100;text.textContent='Guardando mensaje…';
+          setUploadProgress(100);
           if(job.postAttempted){
             const {data,error}=await sb.from('messages').select('id').eq('sender',me).eq('media_path',job.path).limit(1);
             if(error)throw error;
@@ -1136,7 +1144,7 @@ async function processFiles(){
       }catch(e){
         if(job.cancelled){fileQueue.shift();continue}
         job.failed=true;
-        text.textContent='No se pudo enviar '+job.file.name+'. '+(e.message||'');
+        text.textContent=job.file.size>50*1024*1024?'El archivo supera 50 MB.':'No se pudo enviar el archivo.';
         retry.classList.toggle('hidden',job.file.size>50*1024*1024);
         cancel.disabled=false;
         return;
