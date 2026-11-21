@@ -1,5 +1,6 @@
 // Service worker de "Nosotros": notificaciones y actualización automática
 const CACHE = 'nosotros-v3';
+const SUPA = 'https://yqizexknwsrkngrtagoo.supabase.co', SUPA_KEY = 'sb_publishable_Fi7_MoZgTUucOWKTNaFDZA_32gZkJ1s';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
@@ -56,6 +57,11 @@ self.addEventListener('push', e => {
         body: 'Toca para contestar', icon: 'icon-192.png', badge: 'icon-192.png', tag: 'call', renotify: true,
         requireInteraction: true, vibrate: [700, 300, 700, 300, 700, 300, 700], data: { url: reg.scope }
       });
+      // avisa a quien llama que el aviso llegó a este celular → allá pasa de "Llamando…" a "Timbrando…"
+      try {
+        await fetch(SUPA + '/realtime/v1/api/broadcast', { method: 'POST', headers: { apikey: SUPA_KEY, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messages: [{ topic: 'llamada', event: 'sig', payload: { type: 'ringing', from: 'aviso' } }] }) });
+      } catch (_) {}
       return;
     }
     if (!buzz) {

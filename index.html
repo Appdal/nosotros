@@ -977,9 +977,9 @@ function startRing(kind){
     if(kind==='in'){
       try{navigator.vibrate?.([650,300,650])}catch(e){}
       if(!muted())tone([[660,0,.32],[880,.38,.32],[660,.9,.32],[880,1.28,.32]],'sine',.28);
-    }else if(!muted())tone([[440,0,.9]],'sine',.08);
+    }else if(!muted())tone([[425,0,1.2]],'sine',.22);
   };
-  play();ringTone=setInterval(play,kind==='in'?2400:3000);
+  play();ringTone=setInterval(play,kind==='in'?2400:3600);
 }
 function stopRing(){clearInterval(ringTone);ringTone=null;try{navigator.vibrate&&navigator.vibrate(0)}catch(e){}}
 async function getMedia(video,facing='user'){return navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true},video:video?{facingMode:facing,width:{ideal:1280},height:{ideal:720}}:false})}
@@ -995,15 +995,16 @@ async function flushIce(){if(!call||!call.pc||!call.pc.remoteDescription)return;
 async function startCall(video){if(call){flash('Ya hay una llamada en curso');return}if(!other){flash('Tu pareja todavía no tiene cuenta');return}unlock();
   let stream;try{stream=await getMedia(video)}catch(e){flash(video?'Necesito permiso de cámara y micrófono.':'Necesito permiso del micrófono.',5000);return}
   call={cid:Date.now().toString(36)+Math.random().toString(36).slice(2,6),video,role:'out',stream,iceQ:[],facing:'user',t0:0};
-  showCallUI(video,false);cState('waiting','Llamando…');$('lv').srcObject=stream;$('lv').classList.remove('back');startRing('out');
+  showCallUI(video,false);cState('waiting','Llamando…');$('lv').srcObject=stream;$('lv').classList.remove('back');
   try{const {data}=await sb.from('messages').insert({kind:'call',body:video?'🎥 Videollamada':'📞 Llamada'}).select().single();if(data&&call){call.msgId=data.id;if(!byId[data.id]){msgs.push(data);byId[data.id]=data;render()}const ping=()=>sb.functions.invoke('notify',{body:{message_id:data.id}}).catch(()=>{});ping();const c0=call;c0.pushIv=setInterval(()=>{if(call!==c0||c0.accepted||(other&&online[other])){clearInterval(c0.pushIv);return}ping()},4000)}}catch(e){}
   const ring=()=>sig('ring',{video});ring();ringIv=setInterval(ring,2000);
   call.noAns=setTimeout(()=>{if(call&&!call.accepted){sig('hangup');endCall('No contestó',true,'perdida')}},45000)}
 /* --- señales --- */
 async function onSig(p){if(!p||p.from===me)return;
-  if(p.type==='ring'){if(call){if(call.cid!==p.cid)sig('busy',{cid:p.cid});return}if(seenRings.has(p.cid))return;seenRings.add(p.cid);
-    call={cid:p.cid,video:!!p.video,role:'in',iceQ:[],facing:'user',t0:0,lastRing:Date.now()};showCallUI(call.video,true);cState('waiting',call.video?'Videollamada entrante…':'Llamada entrante…');startRing('in');
+  if(p.type==='ring'){if(call){if(call.cid!==p.cid)sig('busy',{cid:p.cid});else if(!call.accepted)sig('ringing');return}if(seenRings.has(p.cid))return;seenRings.add(p.cid);
+    call={cid:p.cid,video:!!p.video,role:'in',iceQ:[],facing:'user',t0:0,lastRing:Date.now()};sig('ringing');showCallUI(call.video,true);cState('waiting',call.video?'Videollamada entrante…':'Llamada entrante…');startRing('in');
     call.watch=setInterval(()=>{if(call&&call.role==='in'&&!call.accepted&&Date.now()-call.lastRing>7000)endCall('Llamada perdida',false)},1500);return}
+  if(p.type==='ringing'){if(call&&call.role==='out'&&!call.accepted&&!call.ringing&&(!p.cid||p.cid===call.cid)){call.ringing=true;cState('waiting','Timbrando…');startRing('out')}return}
   if(!call||p.cid!==call.cid)return;
   if(p.type==='ring'){call.lastRing=Date.now();return}
   if(p.type==='busy'){endCall('Está en otra llamada',true,'no contestada');return}
