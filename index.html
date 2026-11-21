@@ -137,6 +137,18 @@ input[type=file]{display:none}
 .listit .gr{flex:1}.listit .del{color:var(--soft);background:none;border:0;font-size:16px}
 .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
 .grid img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;background:var(--line)}
+/* llamada minimizada */
+#cMin{position:absolute;left:12px;top:calc(12px + env(safe-area-inset-top));z-index:3;width:42px;height:42px;border-radius:50%;border:0;background:rgba(255,255,255,.18);color:#fff;display:grid;place-items:center}
+#cMin svg{width:24px;height:24px}
+#callUI.mini{inset:auto;right:12px;top:calc(66px + env(safe-area-inset-top));width:118px;height:168px;border-radius:18px;overflow:hidden;box-shadow:0 8px 26px rgba(0,0,0,.45);cursor:pointer}
+#callUI.mini #lv,#callUI.mini .cbtns,#callUI.mini #cMin{display:none!important}
+#callUI.mini .cinfo{margin:auto 0 8px!important;padding:0 6px!important;align-items:center!important;gap:0}
+#callUI.mini .cinfo h3{font-size:13px}#callUI.mini .cinfo p{font-size:12px}
+#callUI.mini:not(.audio) .cinfo .av{display:none}
+#callUI.mini.audio{width:auto;height:auto;border-radius:99px;background:#1fae5b;padding:6px 14px 6px 6px}
+#callUI.mini.audio .cinfo{flex-direction:row;margin:0!important;gap:8px}
+#callUI.mini.audio .cinfo .av{width:34px!important;height:34px!important;font-size:16px!important}
+#callUI.mini.audio .cinfo h3{font-size:14px}
 /* stickers */
 .m.stkm{background:transparent!important;box-shadow:none;padding:0;color:var(--ink)}
 .m.stkm .t{display:inline-block;float:right;background:color-mix(in srgb,var(--bar) 80%,transparent);color:var(--soft);border-radius:99px;padding:0 7px;margin-top:2px}
@@ -320,6 +332,9 @@ input[type=file]{display:none}
   <button class="pill sm alt" id="pPass">Cambiar mi contraseña</button>
 
   <h4>&nbsp;</h4>
+  <h4>Vaciar chat 🗑️</h4>
+  <button class="pill sm alt" id="pWipe">Borrar mensajes por fechas</button>
+  <p>Atajo: escribe <b>/borrar</b> en el chat.</p>
   <button class="pill alt" id="pOut">Cerrar sesión</button>
   <button class="pill alt" id="pClose">Listo</button>
 </div></div>
@@ -357,6 +372,13 @@ input[type=file]{display:none}
   <div class="seg" style="width:100%"><button class="pill" id="stkSaveSend">Guardar y enviar</button><button class="pill alt" id="stkSave">Solo guardar</button></div>
   <button class="pill alt ovx" style="width:100%">Cancelar</button></div></div>
 <div class="ov" id="ovEmoji"><div class="sheet"><h3>Reaccionar</h3><div class="emogrid" id="emoGrid"></div><button class="pill alt ovx">Cerrar</button></div></div>
+<div class="ov" id="ovWipe"><div class="sheet"><h3>Borrar mensajes por fechas</h3>
+  <p>Se borran <b>para los dos</b> y no se pueden recuperar (también las fotos, videos y audios de esos días). Tus stickers guardados se mantienen.</p>
+  <div class="rowline"><label style="flex:1;font-size:14px">Desde<br><input id="wFrom" type="date" style="width:100%"></label><label style="flex:1;font-size:14px">Hasta<br><input id="wTo" type="date" style="width:100%"></label></div>
+  <div class="seg"><button data-w="hoy">Hoy</button><button data-w="7">Últimos 7 días</button><button data-w="todo">Todo</button></div>
+  <label style="display:flex;gap:8px;align-items:center;font-size:14px"><input type="checkbox" id="wHot" style="width:auto"> Incluir el chat privado 🔥</label>
+  <p id="wCount" style="font-weight:600;color:var(--ink)"></p>
+  <button class="pill" id="wGo" style="background:#c0392b">Borrar</button><button class="pill alt ovx">Cancelar</button></div></div>
 <div class="ov" id="ovCam"><div class="sheet"><h3>Cámara</h3><button class="pill" id="camPhoto">📷 Tomar foto</button><button class="pill" id="camVideo">🎥 Grabar video</button><button class="pill alt hidden" id="camGal">🖼️ Elegir de la galería</button><button class="pill alt ovx">Cancelar</button></div></div>
 <div class="ov" id="ovCrop"><div class="sheet" style="align-items:center"><h3>Recorta tu foto</h3><p style="text-align:center">Arrastra para moverla · pellizca o usa la barra para acercar</p>
   <div id="cropStage" style="position:relative;width:min(78vw,300px);aspect-ratio:1;touch-action:none;border-radius:14px;overflow:hidden;background:#000;cursor:grab"><canvas id="cropCv" style="width:100%;height:100%;display:block"></canvas><div style="position:absolute;inset:0;border-radius:50%;box-shadow:0 0 0 999px rgba(0,0,0,.55);border:2px solid rgba(255,255,255,.9);pointer-events:none"></div></div>
@@ -382,6 +404,7 @@ input[type=file]{display:none}
 
 <div id="callUI">
   <video id="rv" autoplay playsinline></video>
+  <button id="cMin" aria-label="Minimizar llamada" title="Minimizar y ver el chat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
   <video id="lv" autoplay playsinline muted></video>
   <div class="cinfo"><div class="av" id="cAv" style="width:96px;height:96px;font-size:40px">♥</div><h3 id="cName"></h3><p id="cStatus"></p></div>
   <div class="cbtns" id="cIn">
@@ -652,7 +675,7 @@ function typing(v){if(!channel)return;clearTimeout(typT);if(v)typT=setTimeout(()
 txt.addEventListener('input',()=>{grow();typing(!!txt.value.trim())});
 txt.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing&&matchMedia('(pointer:fine)').matches){e.preventDefault();sendText()}});
 $('send').onclick=sendText;
-async function sendText(){const v=txt.value.trim();if(!v)return;txt.value='';grow();typing(false);try{await post({kind:'text',body:v.slice(0,4000)})}catch(e){txt.value=v;grow()}txt.focus()}
+async function sendText(){const v=txt.value.trim();if(!v)return;if(/^\/(borrar|vaciar|limpiar)\b/i.test(v)){txt.value='';grow();typing(false);openWipe();return}txt.value='';grow();typing(false);try{await post({kind:'text',body:v.slice(0,4000)})}catch(e){txt.value=v;grow()}txt.focus()}
 $('buzz').onclick=async()=>{unlock();const b=$('buzz');b.disabled=true;setTimeout(()=>b.disabled=false,15000);shake();try{await post({kind:'buzz'});flash('¡Zumbido enviado!')}catch(e){}};
 
 /* ---------- fotos/videos ---------- */
@@ -934,7 +957,7 @@ function callSubscribe(){try{callCh=sb.channel('llamada',{config:{broadcast:{sel
 const sig=(type,extra={})=>{if(callCh)callCh.send({type:'broadcast',event:'sig',payload:{type,cid:call&&call.cid,from:me,...extra}}).catch(()=>{})};
 const cui=$('callUI');
 function cState(cls,status){cui.classList.remove('waiting','live');if(cls)cui.classList.add(cls);if(status!=null)$('cStatus').textContent=status}
-function showCallUI(video,incoming){cui.classList.add('on');cui.classList.toggle('audio',!video);$('cName').textContent=otherName()||'Tu pareja';
+function showCallUI(video,incoming){cui.classList.add('on');cui.classList.remove('mini');$('cMin').classList.toggle('hidden',!!incoming);cui.classList.toggle('audio',!video);$('cName').textContent=otherName()||'Tu pareja';
   const avph=couple.avatars&&other&&couple.avatars[other];const ca=$('cAv');ca.innerHTML='';if(avph){const i=document.createElement('img');mediaUrl(avph).then(u=>i.src=u).catch(()=>{});ca.appendChild(i)}else ca.textContent=(otherName()||'♥')[0].toUpperCase();
   $('lv').style.display=incoming||!video?'none':'';$('cIn').classList.toggle('hidden',!incoming);$('cAct').classList.toggle('hidden',incoming);$('cCam').classList.toggle('hidden',!video);$('cFlip').classList.toggle('hidden',!video);$('cMute').classList.remove('off');$('cCam').classList.remove('off')}
 function startRing(kind){stopRing();unlock();const play=()=>{if(muted())return;kind==='in'?tone([[660,0,.35],[880,.4,.35],[660,1.1,.35],[880,1.5,.35]],'sine',.22):tone([[440,0,.9]],'sine',.08)};play();ringTone=setInterval(play,kind==='in'?2600:3000);if(kind==='in')try{navigator.vibrate&&navigator.vibrate([600,400,600,400,600])}catch(e){}}
@@ -982,7 +1005,7 @@ $('cFlip').onclick=async()=>{if(!call||!call.stream||!call.video)return;const fa
 /* --- terminar --- */
 async function endCall(text,logIt,outcome){const c=call;if(!c)return;call=null;clearInterval(c.pushIv);clearInterval(ringIv);clearTimeout(c.noAns);clearInterval(c.watch);clearInterval(c.timer);stopRing();
   try{c.pc&&c.pc.close()}catch(e){}try{c.stream&&c.stream.getTracks().forEach(t=>t.stop())}catch(e){}
-  $('rv').srcObject=null;$('lv').srcObject=null;if(text){cState(null,text);setTimeout(()=>{if(!call)cui.classList.remove('on')},1400)}else cui.classList.remove('on');
+  cui.classList.remove('mini');$('rv').srcObject=null;$('lv').srcObject=null;if(text){cState(null,text);setTimeout(()=>{if(!call)cui.classList.remove('on')},1400)}else cui.classList.remove('on');
   if(c.role==='out'&&c.msgId&&logIt!==false){const base=c.video?'🎥 Videollamada':'📞 Llamada';const body=c.t0?base+' · '+mmss((Date.now()-c.t0)/1000):base+' '+(outcome||'no contestada');try{await sb.from('messages').update({body}).eq('id',c.msgId);if(!c.t0&&!(other&&online[other]))sb.functions.invoke('notify',{body:{message_id:c.msgId}}).catch(()=>{})}catch(e){}if(byId[c.msgId]){byId[c.msgId].body=body;render()}}}
 $('callA').onclick=()=>startCall(false);$('callV').onclick=()=>startCall(true);
 addEventListener('pagehide',()=>{if(call){sig('hangup');}});
@@ -1009,6 +1032,33 @@ function noteCleanup(){if(!me)return;const oRead=new Date(profiles[other]?.last_
     if(m.sender!==me){if(!hidden.has(id)&&!document.hidden)noteTimers[id]=setTimeout(()=>{hidden.add(id);render();saveHidden()},60000)}
     else if(oRead>=new Date(m.created_at).getTime())noteTimers[id]=setTimeout(async()=>{try{await sb.from('messages').delete().eq('id',id)}catch(e){}msgs=msgs.filter(x=>x.id!==id);delete byId[id];render()},60000)}}
 function hideNotesNow(){let ch=false;for(const m of msgs)if(m.kind==='note'&&m.sender!==me&&!hidden.has(m.id)){hidden.add(m.id);ch=true}if(ch){render();saveHidden()}}
+
+/* llamada minimizada: se encoge a una burbuja y deja ver el chat; tocarla la vuelve a abrir */
+$('cMin').onclick=ev=>{ev.stopPropagation();cui.classList.add('mini')};
+cui.addEventListener('click',()=>{if(cui.classList.contains('mini'))cui.classList.remove('mini')});
+
+/* ---------- BORRAR MENSAJES POR FECHAS (/borrar) ---------- */
+const ymd=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+const dayStart=s=>{const [y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d)};
+let wArmed=false,wT=null;
+function openWipe(){panel.classList.remove('on');const today=ymd(new Date());const first=msgs[0]?ymd(new Date(msgs[0].created_at)):today;$('wFrom').value=first;$('wTo').value=today;$('wHot').checked=false;wDisarm();wCountUpd();$('ovWipe').classList.add('on')}
+function wRange(){const a=$('wFrom').value,b=$('wTo').value;if(!a||!b)return null;let from=dayStart(a),to=dayStart(b);if(to<from)[from,to]=[to,from];to=new Date(to.getTime()+86400000);return {from,to}}
+function wDisarm(){wArmed=false;clearTimeout(wT);$('wGo').textContent='Borrar'}
+async function wCountUpd(){wDisarm();const r=wRange();const el=$('wCount');if(!r){el.textContent='Elige las dos fechas.';return}el.textContent='Contando…';
+  try{const q=t=>sb.from(t).select('id',{count:'exact',head:true}).gte('created_at',r.from.toISOString()).lt('created_at',r.to.toISOString());
+    const [a,b]=await Promise.all([q('messages'),$('wHot').checked?q('hot_msgs'):Promise.resolve({count:0})]);const n=a.count||0,h=b.count||0;
+    el.textContent=(n+h)?'Se borrarán '+n+' mensaje'+(n===1?'':'s')+' del chat'+($('wHot').checked?' y '+h+' del chat privado':'')+'.':'No hay mensajes en esas fechas.';$('wGo').disabled=!(n+h)}catch(e){el.textContent='No se pudo contar.'}}
+['wFrom','wTo','wHot'].forEach(id=>$(id).addEventListener('change',wCountUpd));
+document.querySelectorAll('#ovWipe [data-w]').forEach(b=>b.onclick=()=>{const t=new Date();$('wTo').value=ymd(t);const k=b.dataset.w;
+  $('wFrom').value=k==='hoy'?ymd(t):k==='7'?ymd(new Date(t.getTime()-6*86400000)):(msgs[0]?ymd(new Date(msgs[0].created_at)):ymd(t));wCountUpd()});
+$('wGo').onclick=async()=>{const r=wRange();if(!r)return;if(!wArmed){wArmed=true;$('wGo').textContent='¿Seguro? Toca otra vez para borrar';wT=setTimeout(wDisarm,5000);return}
+  wDisarm();$('wGo').disabled=true;$('wGo').textContent='Borrando…';
+  try{const {data,error}=await sb.rpc('borrar_rango',{desde:r.from.toISOString(),hasta:r.to.toISOString(),privado:$('wHot').checked});if(error)throw error;
+    const files=(data&&data.archivos)||[];for(let i=0;i<files.length;i+=50)await sb.storage.from('media').remove(files.slice(i,i+50)).catch(()=>{});
+    $('ovWipe').classList.remove('on');await loadMessages();if($('hot').classList.contains('on'))loadHot();
+    flash('🗑️ Borrados '+(data.mensajes||0)+' mensajes'+($('wHot').checked?' y '+(data.privado||0)+' del chat privado':''),5000)}
+  catch(e){flash('No se pudo borrar: '+(e.message||e),6000)}finally{$('wGo').disabled=false;$('wGo').textContent='Borrar'}};
+$('pWipe').onclick=openWipe;
 
 /* ---------- ZONA HOT ---------- */
 let hotTaps=0,hotTimer=null,hotMsgs=[],hotPending=null;
