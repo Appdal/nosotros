@@ -211,6 +211,71 @@ input[type=file]{display:none}
 .pane{flex:1;overflow:auto;padding:12px;display:none}.pane.on{display:block}
 .hotwrap{max-width:620px;margin:0 auto;display:flex;flex-direction:column;gap:6px}
 .spin{font-size:19px;text-align:center;padding:22px;border:2px dashed var(--line);border-radius:16px;margin:10px 0;min-height:90px;display:grid;place-items:center}
+/* Chat principal */
+#app{
+  --chat-surface:light-dark(#fbf8f7,#1c151a);
+  --chat-paper:light-dark(#f3edeb,#161116);
+  --chat-edge:light-dark(#e4d9d8,#382b33);
+  --chat-received:light-dark(#fff,#281f26);
+  --chat-sent:color-mix(in srgb,var(--mine) 24%,var(--chat-received));
+}
+#app>header{
+  gap:8px;
+  padding:calc(10px + env(safe-area-inset-top)) max(12px,calc((100% - 780px)/2)) 10px;
+  padding-left:max(12px,env(safe-area-inset-left),calc((100% - 780px)/2));
+  padding-right:max(12px,env(safe-area-inset-right),calc((100% - 780px)/2));
+  background:var(--chat-surface);
+  border-color:var(--chat-edge);
+}
+#app>header .av{width:42px;height:42px}
+#app>header .btn{width:36px;color:var(--ink)}
+#app>header :is(#love,#buzz){color:var(--mine)}
+#app .hd h2{font-size:16px;font-weight:700}
+#app .sub{font-size:12px}
+#list{
+  padding:12px max(12px,env(safe-area-inset-right)) 16px max(12px,env(safe-area-inset-left));
+  background:radial-gradient(circle at 50% 0%,color-mix(in srgb,var(--mine) 9%,transparent),transparent 520px),var(--chat-paper);
+}
+#list .wrap{gap:4px}
+#list .day{background:var(--chat-surface);border:1px solid var(--chat-edge);padding:4px 12px}
+#list .m:not(.stkm){
+  padding:8px 12px 5px;
+  border:1px solid var(--chat-edge);
+  border-radius:16px 16px 16px 5px;
+  background:var(--chat-received);
+  color:var(--ink);
+}
+#list .m.me:not(.stkm){
+  border-radius:16px 16px 5px 16px;
+  border-color:color-mix(in srgb,var(--mine) 32%,var(--chat-edge));
+  background:var(--chat-sent);
+}
+#list .m.me:not(.stkm) .q b{color:var(--ink)}
+#list .m.me:not(.stkm) .tk.r{color:light-dark(#175476,#9bdcff)}
+#list .m.me:not(.stkm) .q{background:color-mix(in srgb,var(--chat-received) 65%,transparent);border-color:var(--mine)}
+#list .t{opacity:.82;font-variant-numeric:tabular-nums}
+#list .bz{opacity:.86}
+#app>footer{
+  background:var(--chat-surface);
+  border-color:var(--chat-edge);
+  padding:8px max(10px,env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left));
+}
+#app>footer .row{gap:4px}
+#app>footer :is(#cam,#gal,#stkBtn){width:34px;color:var(--ink)}
+#app>footer :is(#mic,#send){width:46px;height:46px}
+#app #txt{
+  min-height:46px;
+  padding-inline:14px;
+  background:var(--chat-received);
+  border-color:var(--chat-edge);
+}
+#app #txt:focus{border-color:var(--mine)}
+#app :is(button,textarea):focus-visible{outline:2px solid var(--mine);outline-offset:2px}
+@media(max-width:420px){
+  #app>header{gap:4px}
+  #app>header .btn{width:32px}
+  #app>footer :is(#cam,#gal,#stkBtn){width:30px}
+}
 </style>
 </head>
 <body>
