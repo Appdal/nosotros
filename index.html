@@ -86,12 +86,14 @@ header .btn{width:36px}
 .m.me .rx span{background:rgba(255,255,255,.22);border-color:transparent}
 .acts{display:none;gap:6px;margin-top:6px;flex-wrap:wrap;align-items:center}.m.sel .acts{display:flex}
 .acts .emo{font-size:20px;background:none;border:0;padding:2px}
-.acts button.tb{border:0;border-radius:99px;padding:6px 12px;min-height:34px;font-size:13px;font-weight:600;background:#fff;color:var(--mine)}
+.acts .br{flex-basis:100%;height:0}
+#list .m .acts,#list .m .rx{clear:both}
+.acts button.tb{white-space:nowrap;border:0;border-radius:99px;padding:6px 11px;min-height:32px;font-size:12.5px;font-weight:600;background:#fff;color:var(--mine)}
 .m:not(.me) .acts button.tb{background:var(--line);color:var(--ink)}
 .seen{align-self:flex-end;font-size:13px;color:var(--soft);margin:2px 4px 0}
 .bz{align-self:center;margin:3px 0;padding:1px 9px;border-radius:99px;background:color-mix(in srgb,var(--accent) 9%,transparent);color:var(--soft);font-weight:400;font-size:11px;line-height:1.5;text-align:center;max-width:80%;opacity:.55}
-.vz{display:flex;align-items:center;gap:10px;min-width:210px;padding:2px 0}
-.vz button{flex:none;width:40px;height:40px;border-radius:50%;border:0;background:var(--mine);color:#fff;display:grid;place-items:center}
+.vz{display:flex;align-items:center;gap:8px;width:min(205px,58vw);padding:1px 0}
+.vz button{flex:none;width:36px;height:36px;border-radius:50%;border:0;background:var(--mine);color:#fff;display:grid;place-items:center}
 .m.me .vz button{background:#fff;color:var(--mine)}
 .vz button svg{width:18px;height:18px}
 .vz .bar{flex:1;height:22px;position:relative;touch-action:none;cursor:pointer}
@@ -100,8 +102,13 @@ header .btn{width:36px}
 .vz .bar b{position:absolute;top:4px;left:0;width:14px;height:14px;margin-left:-7px;border-radius:50%;background:var(--mine);box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform .1s}
 .vz.seek .bar b{transform:scale(1.3)}
 .m.me .vz .bar i,.m.me .vz .bar b{background:#fff}
-#list .m.me .vz .bar i,#list .m.me .vz .bar b{background:var(--mine)}
-.vz small{font-size:13px;opacity:.85;white-space:nowrap;min-width:34px;text-align:right;font-variant-numeric:tabular-nums}
+#list .m.me .vz .bar i,#list .m.me .vz .bar b{background:light-dark(#8696a0,#8696a0)}
+/* tu audio ya fue escuchado: la barra y el punto se pintan de azul, como en WhatsApp */
+#list .m.me .vz.heard .bar i,#list .m.me .vz.heard .bar b{background:#34b7f1}
+#list .m.me .vz.heard button{background:#34b7f1}
+/* audio recibido que aún no escuchaste: punto de color */
+#list .m:not(.me) .vz:not(.heard) .bar b{background:#34b7f1}
+.vz small{font-size:12px;opacity:.85;white-space:nowrap;min-width:34px;text-align:right;font-variant-numeric:tabular-nums}
 .empty{margin:40px auto;text-align:center;color:var(--soft);max-width:300px}
 /* composer */
 footer{background:var(--bar);border-top:1px solid var(--line);padding:8px 8px calc(8px + env(safe-area-inset-bottom))}
@@ -137,7 +144,8 @@ input[type=file]{display:none}
 .sheet .seg button.sel{background:var(--mine);color:#fff;border-color:var(--mine)}
 .rowline{display:flex;gap:8px;align-items:center}
 .rowline input{flex:1}
-.swatch{width:30px;height:30px;border-radius:50%;border:2px solid var(--line)}.swatch.sel{border-color:var(--ink);transform:scale(1.12)}
+.colors{flex:none;display:grid;grid-template-columns:repeat(auto-fill,minmax(34px,1fr));gap:9px;margin-top:6px;padding:4px}
+.swatch{width:32px;height:32px;border-radius:50%;border:2px solid var(--line);padding:0;justify-self:center}.swatch.sel{border-color:var(--ink);transform:scale(1.12)}
 .listit{display:flex;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
 .listit .gr{flex:1}.listit .del{color:var(--soft);background:none;border:0;font-size:16px}
 .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
@@ -436,7 +444,7 @@ input[type=file]{display:none}
 
   <h4>Tema</h4>
   <div class="seg"><button data-th="auto" id="thAuto">Auto</button><button data-th="light">Claro</button><button data-th="dark">Oscuro</button></div>
-  <div class="rowline" id="colors" style="gap:10px;margin-top:4px"></div>
+  <div id="colors" class="colors"></div>
 
   <h4>Contraseña 🔑</h4>
   <button class="pill sm alt" id="pPass">Cambiar mi contraseña</button>
@@ -556,7 +564,24 @@ async function saveHidden(){try{localStorage.setItem('hidden',JSON.stringify([..
 function hideForMe(id){hidden.add(id);selId=null;render();saveHidden()}
 function hideHotForMe(id){hiddenHot.add(id);renderHot();saveHidden()}
 
-const PALETTES={rosa:['#c42f4a','#ff8a65'],morado:['#7c3aed','#f472b6'],azul:['#2563eb','#38bdf8'],verde:['#0d9488','#fbbf24'],rojo:['#dc2626','#fb923c'],durazno:['#e05a7a','#ffb085']};
+/* colores del tema: ordenados por tono, cada uno en 3 intensidades (suave, normal, intenso). [color principal, acento, nombre] */
+const PALETTES={
+  'rosa-s':['#df5b79','#ffa48a','Rosa suave'],rosa:['#c42f4a','#ff8a65','Rosa'],'rosa-i':['#8e1f3a','#ff7a7a','Rosa intenso'],
+  durazno:['#e05a7a','#ffb085','Durazno'],'coral':['#e8604c','#ffb38a','Coral'],
+  'rojo-s':['#e5484d','#ffab70','Rojo suave'],rojo:['#dc2626','#fb923c','Rojo'],'rojo-i':['#991b1b','#f97362','Rojo intenso'],
+  'naranja-s':['#f2771e','#ffd08a','Naranja suave'],naranja:['#ea580c','#fdba74','Naranja'],'naranja-i':['#b4410c','#fca46b','Naranja intenso'],
+  'ambar-s':['#d98a06','#fde68a','Ámbar suave'],ambar:['#b45309','#fcd34d','Ámbar'],'ambar-i':['#8a3c0c','#fbbf24','Ámbar intenso'],
+  'cafe-s':['#a0623a','#e8c39a','Café suave'],cafe:['#7c4a2d','#e0b084','Café'],'cafe-i':['#5a3520','#d4a373','Café intenso'],
+  'oliva-s':['#5f9a12','#d9f99d','Oliva suave'],oliva:['#4d7c0f','#bef264','Oliva'],'oliva-i':['#365314','#a3e635','Oliva intenso'],
+  'wsp-s':['#1fa855','#86efac','Verde WhatsApp suave'],wsp:['#008069','#25d366','Verde WhatsApp'],'wsp-i':['#075e54','#34d399','Verde WhatsApp intenso'],
+  'verde-s':['#0f9e8e','#fcd34d','Turquesa suave'],verde:['#0d9488','#fbbf24','Turquesa'],'verde-i':['#115e59','#f6c445','Turquesa intenso'],
+  'celeste-s':['#0e9fd8','#bae6fd','Celeste suave'],celeste:['#0284c7','#7dd3fc','Celeste'],'celeste-i':['#075985','#38bdf8','Celeste intenso'],
+  'azul-s':['#3b7cf0','#93c5fd','Azul suave'],azul:['#2563eb','#38bdf8','Azul'],'azul-i':['#1e3a8a','#60a5fa','Azul intenso'],
+  'indigo-s':['#6366f1','#c7d2fe','Índigo suave'],indigo:['#4f46e5','#a5b4fc','Índigo'],'indigo-i':['#312e81','#818cf8','Índigo intenso'],
+  'morado-s':['#9461f0','#f9a8d4','Morado suave'],morado:['#7c3aed','#f472b6','Morado'],'morado-i':['#5b21b6','#e879f9','Morado intenso'],
+  'fucsia-s':['#d23d9c','#fbcfe8','Fucsia suave'],fucsia:['#be185d','#f9a8d4','Fucsia'],'fucsia-i':['#831843','#f472b6','Fucsia intenso'],
+  'gris-s':['#64748b','#cbd5e1','Gris suave'],gris:['#475569','#94a3b8','Gris'],'gris-i':['#1f2937','#9ca3af','Grafito']
+};
 const QUESTIONS=['¿Cuál fue el momento en que supiste que te gustaba?','¿Qué es lo primero que notaste de mí?','Si pudiéramos viajar mañana, ¿a dónde?','¿Cuál es tu recuerdo favorito juntos?','¿Qué canción te recuerda a mí?','¿Qué te gustaría que hiciéramos más seguido?','¿Cómo te imaginas nuestra vida en 5 años?','¿Qué es lo que más te hace reír de mí?','¿Cuál ha sido nuestro mejor día?','¿Qué pequeño detalle mío te encanta?','¿Qué comida te gustaría que cocináramos juntos?','¿Qué te hace sentir más amada/o?','¿Cuál es tu apodo favorito para mí?','¿Qué película veríamos una y otra vez?','Si fuéramos personajes de una historia, ¿cuál sería?'];
 const LOVE=['Estoy pensando en ti 💭','Te extraño mucho ❤️','Eres lo mejor de mi día 🌞','No puedo dejar de pensar en ti 💕','Te amo un montón 🥰','Ven a abrazarme 🫂','Eres mi persona favorita 💞'];
 const RETOS=['Mándale un mensaje diciéndole 3 cosas que te encantan de su cuerpo','Describe tu fantasía favorita en un audio','Manda una foto coqueta (tú decides cuánto)','Propón un plan para esta noche','Cuenta algo que siempre quisiste probar','Dale un beso donde más le guste (dilo primero)','Elige una canción y báilenla juntos por videollamada','Escribe un mensaje subiendo la temperatura, frase por frase','Dedícale un piropo atrevido','Manda un audio susurrando algo lindo','Describe qué harías si estuvieran juntos ahora','Confiesa una fantasía que nunca le contaste','Mándale una selfie guiñando el ojo','Elige un lugar nuevo donde te gustaría besarla','Cuéntale tu recuerdo más caliente juntos','Escribe el inicio de una historia subida de tono y que ella la siga','Proponle una cita sorpresa','Dile 3 cosas que te mueren por hacerle','Manda un emoji y que ella adivine qué significa 😏','Describe tu outfit ideal para una noche especial','Reta a la otra persona a mandar una foto en 1 minuto','Cuenta algo tímido que te gustaría probar','Dile al oído (por audio) lo que más te gusta de ella','Pon una canción lenta y descríbele cómo bailarían','Manda un mensaje solo con emojis picantes','Propón un juego para la próxima vez que se vean','Dile qué parte de su cuerpo es tu favorita y por qué','Escribe una promesa coqueta para esta semana','Cuéntale un sueño que tuviste con ella','Haz una lista de 3 planes atrevidos para el finde','Mándale un video corto mandándole un beso','Describe con detalle tu fantasía de juego de roles','Elige un disfraz o personaje para la próxima noche','Confiesa algo tabú que te gustaría probar en casa','Dile qué te gustaría que te susurre al oído','Propón una noche temática solo para los dos','Escribe una escena atrevida y que ella elija el final','Dile qué prenda tuya le encantaría verte quitarte','Reta a mandar un audio gimiendo su nombre 😏'];
@@ -711,7 +736,7 @@ let curAudio=null,curBtn=null;
 /* audio con barra arrastrable: tiempo en segundos y se puede adelantar o regresar al punto que quieras, como en WhatsApp */
 function voiceEl(m){const box=document.createElement('div');box.className='vz';const btn=document.createElement('button');btn.innerHTML=playIco;btn.setAttribute('aria-label','Reproducir audio');
   const bar=document.createElement('div');bar.className='bar';const fill=document.createElement('i');const dot=document.createElement('b');bar.append(fill,dot);
-  const tm=document.createElement('small');tm.textContent=mmss(m.duration);box.append(btn,bar,tm);
+  const tm=document.createElement('small');tm.textContent=mmss(m.duration);box.append(btn,bar,tm);if(m.heard_at)box.classList.add('heard');
   let au=null,pos=0,drag=false;
   const dur=()=>(au&&isFinite(au.duration)&&au.duration>0)?au.duration:(m.duration||0);
   const paint=(t,showT)=>{const d=dur(),f=d?Math.max(0,Math.min(1,t/d)):0;fill.style.width=f*100+'%';dot.style.left=f*100+'%';tm.textContent=mmss(showT?t:(t>0?t:m.duration))};
@@ -725,6 +750,7 @@ function voiceEl(m){const box=document.createElement('div');box.className='vz';c
     au=a;return a}
   const seekTo=t=>{pos=Math.max(0,Math.min(dur()||t,t));paint(pos,true);if(au){const go=()=>{try{au.currentTime=pos}catch(e){}};if(au.readyState>=1)go();else au.addEventListener('loadedmetadata',go,{once:true})}};
   btn.onclick=async ev=>{ev.stopPropagation();unlock();if(au&&curAudio===au&&!au.paused){au.pause();return}
+    if(m.sender!==me&&!m.heard_at&&m.id&&byId[m.id]===m){m.heard_at=new Date().toISOString();box.classList.add('heard');sb.from('messages').update({heard_at:m.heard_at}).eq('id',m.id).then(()=>{},()=>{})}
     stopOthers();const a=await load();if(!a)return;curAudio=a;curBtn=btn;
     if(pos>0&&Math.abs(a.currentTime-pos)>.3){if(a.readyState>=1)a.currentTime=pos;else a.addEventListener('loadedmetadata',()=>{a.currentTime=pos},{once:true})}
     a.play().catch(()=>{btn.innerHTML=playIco})};
@@ -760,6 +786,7 @@ function buildMsg(m){
   const acts=document.createElement('div');acts.className='acts';
   for(const e of ['❤️','😂','😮','😍','🔥']){const eb=document.createElement('button');eb.className='emo';eb.textContent=e;eb.onclick=ev=>{ev.stopPropagation();react(cur(),e)};acts.appendChild(eb)}
   {const mb=document.createElement('button');mb.className='emo more';mb.textContent='+';mb.title='Más reacciones';mb.onclick=ev=>{ev.stopPropagation();openEmoji(id)};acts.appendChild(mb)}
+  {const br=document.createElement('i');br.className='br';acts.appendChild(br)}
   const fb=document.createElement('button');fb.className='tb';fb.textContent=m.fav?'★':'☆';fb.onclick=ev=>{ev.stopPropagation();toggleFav(cur())};acts.appendChild(fb);
   const rb=document.createElement('button');rb.className='tb';rb.textContent='Responder';rb.onclick=ev=>{ev.stopPropagation();startReply(cur())};acts.appendChild(rb);
   if((m.kind==='image'||m.kind==='video')&&m.media_path){const sv=document.createElement('button');sv.className='tb';sv.textContent='⬇️ Guardar';sv.onclick=ev=>{ev.stopPropagation();selId=null;render();saveMedia(m.media_path,m.kind)};acts.appendChild(sv)}
@@ -786,6 +813,7 @@ function render(){
     if(m.kind==='buzz'){const tx='⚡ '+(m.sender===me?'Enviaste un zumbido':who(m.sender)+' te envió un zumbido')+((m.body||'').trim()?' — '+m.body:'')+' · '+hm(m.created_at);nodes.push(keyed(m.id,tx,()=>{const z=document.createElement('div');z.className='bz';z.textContent=tx;return z}));continue}
     if(m.sender===me)lastMine=m;
     const el=keyed(m.id,msgSig(m),()=>buildMsg(m));el.classList.toggle('sel',m.id===selId);nodes.push(el);
+    if(m.kind==='voice'){const v=el.querySelector('.vz');if(v)v.classList.toggle('heard',!!m.heard_at)}
     if(m.sender===me){const tk=el.querySelector('.tk');if(tk){const ts=new Date(m.created_at).getTime();const st=ts<=oRead?'r':ts<=oDeliv?'d':'s';if(tk.dataset.st!==st){tk.dataset.st=st;tk.textContent=st==='s'?'✓':'✓✓';tk.classList.toggle('r',st==='r');tk.title=st==='r'?'Leído':st==='d'?'Entregado':'Enviado'}}}
   }
   /* aplica solo las diferencias en pantalla */
@@ -914,7 +942,7 @@ async function saveMedia(path,kind){if(!path)return;show('Descargando…');try{c
 $('bigSave').onclick=()=>{if(bigPath)saveMedia(bigPath,$('bigVid').classList.contains('hidden')?'image':'video')};
 function bigClosed(){const vd=$('bigVid');try{vd.pause()}catch(e){}vd.removeAttribute('src');vd.load();vd.classList.add('hidden');$('bigImg').classList.remove('hidden');const f=bigOnClose;bigOnClose=null;f&&f()}
 $('pOut').onclick=async()=>{await sb.auth.signOut();location.reload()};
-function buildColors(){const c=$('colors');c.innerHTML='';for(const [k,v] of Object.entries(PALETTES)){const s=document.createElement('button');s.className='swatch';s.dataset.c=k;s.style.background=v[0];s.onclick=()=>{saveCouple({color:k});applyTheme()};c.appendChild(s)}}
+function buildColors(){const c=$('colors');c.innerHTML='';for(const [k,v] of Object.entries(PALETTES)){const s=document.createElement('button');s.className='swatch';s.dataset.c=k;s.title=v[2]||k;s.setAttribute('aria-label',v[2]||k);s.style.background='linear-gradient(135deg,'+v[0]+' 55%,'+v[1]+')';s.onclick=()=>{saveCouple({color:k});applyTheme()};c.appendChild(s)}}
 document.querySelectorAll('.seg [data-th]').forEach(b=>b.onclick=()=>{try{localStorage.setItem('tema',b.dataset.th)}catch(e){}applyTheme()});
 function fillPanel(){
   const avph=couple.avatars&&couple.avatars[me];$('myAv').innerHTML='';if(avph){const i=document.createElement('img');i.style.cssText='width:100%;height:100%;object-fit:cover;border-radius:50%';mediaUrl(avph).then(u=>i.src=u).catch(()=>{});$('myAv').appendChild(i)}else $('myAv').textContent='♥';
